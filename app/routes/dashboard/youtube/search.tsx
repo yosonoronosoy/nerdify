@@ -1,14 +1,10 @@
 import type { LoaderFunction } from "@remix-run/server-runtime";
-import { Form, useLoaderData } from "@remix-run/react";
+import { Form, Link, useLoaderData } from "@remix-run/react";
 import { json } from "@remix-run/server-runtime";
-import type {
-  YoutubeChannelSearchResult,
-  YoutubeSearchChannelResponse,
-  YoutubeSearchResponse,
-} from "~/zod-schemas/YoutubeSearchSchema";
-import { youtubeSearchResponse } from "~/zod-schemas/YoutubeSearchSchema";
+import type { SearchChannelResponse } from "~/services/youtube.server";
+import { searchChannel } from "~/services/youtube.server";
 
-type LoaderData = YoutubeSearchChannelResponse | null;
+type LoaderData = SearchChannelResponse | null;
 
 export const loader: LoaderFunction = async ({ request }) => {
   const url = new URL(request.url);
@@ -18,36 +14,13 @@ export const loader: LoaderFunction = async ({ request }) => {
     return null;
   }
 
-  const searchUrl = `https://www.googleapis.com/youtube/v3/search`;
+  const res = await searchChannel(searchQuery);
 
-  const querystring = new URLSearchParams({
-    part: "snippet",
-    maxResults: "25",
-    q: searchQuery,
-    key: process.env.YOUTUBE_API_KEY,
-  });
-
-  const response = await fetch(`${searchUrl}?${querystring}`).then((res) =>
-    res.json()
-  );
-
-  const filterChannel = (
-    item: YoutubeSearchResponse["items"][number]
-  ): item is YoutubeChannelSearchResult => item.id.kind === "youtube#channel";
-
-  const ytResponse = youtubeSearchResponse.parse(response);
-
-  const finalResponse = {
-    ...ytResponse,
-    items: ytResponse.items.filter(filterChannel),
-  };
-
-  return json(finalResponse);
+  return json<SearchChannelResponse>(res);
 };
 
 export default function YoutubeSearch() {
   const data = useLoaderData<LoaderData>();
-  console.log({ data });
 
   return (
     <div>
@@ -73,20 +46,30 @@ export default function YoutubeSearch() {
         <ul className="mt-4">
           {data.items.map((item) => (
             <li key={item.id.channelId} className="mx-auto max-w-xl">
-              <a
-                className="flex items-center justify-between"
-                href={`https://www.youtube.com/channel/${item.id.channelId}`}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <img
-                  src={`${item.snippet.thumbnails.default?.url}?not-from-cache-please`}
-                  alt=""
-                  crossOrigin="anonymous"
-                  className="rounded-full"
-                />
-                {item.snippet.title}
-              </a>
+              <div className=" flex items-center justify-between">
+                <a
+                  className="flex items-center justify-between gap-24"
+                  href={`https://www.youtube.com/channel/${item.id.channelId}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <img
+                    src={`${item.snippet.thumbnails.default?.url}?not-from-cache-please`}
+                    alt="channel-thumbnail"
+                    crossOrigin="anonymous"
+                    className="rounded-full"
+                  />
+                  <h3>{item.snippet.title}</h3>
+                </a>
+                <Link to={`/dashboard/youtube/channels/${item.id.channelId}`}>
+                  Get channel info
+                </Link>
+              </div>
+              {item.channelStatus === "PROCESSED" ? (
+                <div>This channel has been fully checked</div>
+              ) : item.channelStatus === "OUTDATED" ? (
+                <div>This channel has new content</div>
+              ) : null}
             </li>
           ))}
         </ul>

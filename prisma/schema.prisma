@@ -1,10 +1,16 @@
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
 generator client {
   provider = "prisma-client-js"
+}
+
+enum Status {
+  PROCESSED
+  OUTDATED
+  UNPROCESSED
 }
 
 model User {
@@ -23,6 +29,21 @@ model Password {
 
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   userId String @unique
+}
+
+model YoutubePlaylist {
+  id         String @id @default(cuid())
+  title      String
+  playlistId String @unique
+  trackCount Int
+  status     Status
+}
+
+model YoutubeChannel {
+  id        String @id @default(cuid())
+  title     String
+  channelId String @unique
+  status    Status
 }
 
 model Note {
