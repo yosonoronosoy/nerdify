@@ -46,6 +46,12 @@ model YoutubeChannel {
   status    Status
 }
 
+model SpotifyTrack {
+  id          String @id @default(cuid())
+  trackId     String @unique
+  searchQuery String
+}
+
 model Note {
   id    String @id @default(cuid())
   title String
