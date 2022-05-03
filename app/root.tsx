@@ -9,6 +9,7 @@ import {
   ScrollRestoration,
   useLoaderData,
   Form,
+  useLocation,
 } from "@remix-run/react";
 import { YoutubeIcon } from "~/icons/Youtube";
 import { RadioIcon } from "~/icons/RadioIcon";
@@ -34,14 +35,13 @@ export const meta: MetaFunction = () => ({
 });
 
 const navigation = [
-  { name: "Youtube", href: "youtube", icon: YoutubeIcon, current: true },
-  { name: "NTS", href: "nts", icon: RadioIcon, current: false },
-  { name: "Discogs", href: "discogs", icon: DiscogsIcon, current: false },
+  { name: "Youtube", href: "youtube", icon: YoutubeIcon},
+  { name: "NTS", href: "nts", icon: RadioIcon},
+  { name: "Discogs", href: "discogs", icon: DiscogsIcon},
   {
     name: "Copy/Paste",
     href: "copy-paste",
     icon: ClipboardIcon,
-    current: false,
   },
 ];
 
@@ -59,6 +59,9 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const data = useLoaderData<Session | null | undefined>();
   const user = data?.user;
+
+  const location = useLocation();
+  const currentTab = location.pathname.split("/")?.[2] ?? '';
 
   return (
     <html lang="en" className="h-full">
@@ -132,7 +135,7 @@ export default function App() {
                           key={item.name}
                           to={user ? `dashboard/${item.href}` : "/"}
                           className={classNames(
-                            item.current
+                            currentTab === item.href
                               ? "bg-gray-100 text-gray-900"
                               : "text-gray-600 hover:bg-gray-50 hover:text-gray-900",
                             "group flex items-center rounded-md px-2 py-2 text-base font-medium"
@@ -140,7 +143,7 @@ export default function App() {
                         >
                           <item.icon
                             className={classNames(
-                              item.current
+                              currentTab === item.href
                                 ? "text-gray-500"
                                 : "text-gray-400 group-hover:text-gray-500",
                               "mr-4 h-6 w-6 flex-shrink-0"
@@ -204,7 +207,7 @@ export default function App() {
                       key={item.name}
                       to={user ? `dashboard/${item.href}` : "/"}
                       className={classNames(
-                        item.current
+                        currentTab === item.href
                           ? "bg-gray-100 text-gray-900"
                           : "text-gray-600 hover:bg-gray-50 hover:text-gray-900",
                         "group flex items-center rounded-md px-2 py-2 text-sm font-medium"
@@ -212,7 +215,7 @@ export default function App() {
                     >
                       <item.icon
                         className={classNames(
-                          item.current
+                          currentTab === item.href
                             ? "text-gray-500"
                             : "text-gray-400 group-hover:text-gray-500",
                           "mr-3 h-6 w-6 flex-shrink-0"

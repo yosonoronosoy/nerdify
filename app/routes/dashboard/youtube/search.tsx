@@ -3,6 +3,7 @@ import { Form, Link, useLoaderData } from "@remix-run/react";
 import { json } from "@remix-run/server-runtime";
 import type { SearchChannelResponse } from "~/services/youtube.server";
 import { searchChannel } from "~/services/youtube.server";
+import { ExclamationIcon } from "@heroicons/react/outline";
 
 type LoaderData = SearchChannelResponse | null;
 
@@ -24,7 +25,6 @@ export default function YoutubeSearch() {
 
   return (
     <div>
-      <h1>Youtube Search</h1>
       <Form method="get" className="mx-auto w-64">
         <label
           htmlFor="search-query"
@@ -42,11 +42,14 @@ export default function YoutubeSearch() {
           />
         </div>
       </Form>
-      {data && (
-        <ul className="mt-4">
+      {data && data.items.length > 0 ? (
+        <ul className="mt-16">
           {data.items.map((item) => (
-            <li key={item.id.channelId} className="mx-auto max-w-xl">
-              <div className=" flex items-center justify-between">
+            <li
+              key={item.id.channelId}
+              className="mx-auto max-w-xl rounded-md p-8 shadow-lg"
+            >
+              <div className="flex items-center justify-between">
                 <a
                   className="flex items-center justify-between gap-24"
                   href={`https://www.youtube.com/channel/${item.id.channelId}`}
@@ -59,9 +62,14 @@ export default function YoutubeSearch() {
                     crossOrigin="anonymous"
                     className="rounded-full"
                   />
-                  <h3>{item.snippet.title}</h3>
+                  <h3 className="text-xl font-semibold text-slate-800">
+                    {item.snippet.title}
+                  </h3>
                 </a>
-                <Link to={`/dashboard/youtube/channels/${item.id.channelId}`}>
+                <Link
+                  className="text-sm text-indigo-500"
+                  to={`/dashboard/youtube/channels/${item.id.channelId}`}
+                >
                   Get channel info
                 </Link>
               </div>
@@ -73,7 +81,29 @@ export default function YoutubeSearch() {
             </li>
           ))}
         </ul>
-      )}
+      ) : data && data.items.length === 0 ? (
+        <div className="mt-8 border-l-4 border-red-400 bg-red-50 p-4">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <ExclamationIcon
+                className="h-5 w-5 text-red-400"
+                aria-hidden="true"
+              />
+            </div>
+            <div className="ml-3">
+              <p className="text-sm text-red-700">
+                No results found for your query{" "}
+                <Link
+                  to="youtube/channel"
+                  className="font-medium text-red-700 underline hover:text-red-600"
+                >
+                  Try looking for the channel id in the url instead
+                </Link>
+              </p>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
