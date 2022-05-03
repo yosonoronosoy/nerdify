@@ -1,3 +1,6 @@
+import { prisma } from "~/db.server";
+import { getSpotifyTrackBySearchQuery } from "~/models/spotify.server";
+import { spotifySearchTrackResponse } from "~/zod-schemas/SpotifyTrackSearch";
 import { spotifyStrategy } from "./auth.server";
 
 const baseUrl = `https://api.spotify.com/v1`;
@@ -13,14 +16,20 @@ function getQuerystring(searchParams: SearchParams) {
 }
 
 export async function searchTrack({
-  artist,
-  track,
+  searchQuery,
   req,
 }: {
-  artist: string;
-  track: string;
+  searchQuery: `${string} - ${string}`;
   req: Request;
 }) {
+  const trackFromDB = await getSpotifyTrackBySearchQuery(searchQuery);
+
+  if (trackFromDB) {
+    return { kind: "FROM_DB", track: trackFromDB };
+  }
+
+  const [track, artist] = searchQuery.split(" – ");
+
   const querystring = getQuerystring({
     q: `track:${track} artist:${artist}`,
     type: "track",
@@ -40,5 +49,14 @@ export async function searchTrack({
   });
 
   const json = await response.json();
-  return json;
+  const res = spotifySearchTrackResponse.parse(json);
+
+  await prisma.spotifyTrack.create({
+    data: {
+      searchQuery,
+      trackId: res.tracks.items[0].id,
+    },
+  });
+
+  return { kind: "FROM_API", track: res };
 }
