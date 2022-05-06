@@ -13,6 +13,11 @@ enum Status {
   UNPROCESSED
 }
 
+enum Availability {
+  AVAILABLE
+  UNAVAILABLE
+}
+
 model User {
   id    String @id @default(cuid())
   email String @unique
@@ -47,9 +52,11 @@ model YoutubeChannel {
 }
 
 model SpotifyTrack {
-  id          String @id @default(cuid())
-  trackId     String @unique
-  searchQuery String
+  id             String       @id @default(cuid())
+  trackId        String?      @unique
+  searchQuery    String
+  availability   Availability
+  youtubeVideoId String
 }
 
 model Note {

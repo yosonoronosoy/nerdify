@@ -1,8 +1,17 @@
+import type { Session } from "@remix-run/server-runtime";
+import { redirect } from "@remix-run/server-runtime";
 import { Authenticator } from "remix-auth";
 import { GoogleStrategy } from "remix-auth-google";
+import type { Session as SpotifySession } from "remix-auth-spotify";
 import { SpotifyStrategy } from "remix-auth-spotify";
 import invariant from "tiny-invariant";
-import { sessionStorage } from "./session.server";
+import { spotifyRefreshTokenResponse } from "~/zod-schemas/SpotifyRefreshTokenResponse";
+import {
+  getSession,
+  sessionStorage,
+  setNewCookie,
+  setSessionByKey,
+} from "./session.server";
 
 invariant(process.env.SPOTIFY_CLIENT_ID, "Missing Spotify Client ID");
 invariant(process.env.SPOTIFY_CLIENT_SECRET, "Missing Spotify Client Secret");
@@ -43,6 +52,81 @@ export const spotifyStrategy = new SpotifyStrategy(
     };
   }
 );
+
+async function getNewSpotifyTokenFromRefreshToken(refreshToken: string) {
+  const url = `https://accounts.spotify.com/api/token?${new URLSearchParams({
+    grant_type: "refresh_token",
+    refresh_token: refreshToken,
+  })}`;
+
+  const base64Token = Buffer.from(
+    `${process.env.SPOTIFY_CLIENT_ID}:${process.env.SPOTIFY_CLIENT_SECRET}`
+  ).toString("base64");
+
+  const response = await fetch(url, {
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      Authorization: `Basic ${base64Token}`,
+    },
+    method: "POST",
+  });
+
+  if (!response.ok) {
+    throw new Error(response.statusText);
+  }
+
+  const json = await response.json();
+  const res = spotifyRefreshTokenResponse.safeParse(json);
+
+  if (!res.success) {
+    throw res.error;
+  }
+
+  return res.data;
+}
+
+export async function setSessionWithNewAccessToken({
+  spotifySession,
+  request,
+  path,
+}: {
+  spotifySession: SpotifySession;
+  request: Request;
+  path?: string;
+}) {
+  const res = await getNewSpotifyTokenFromRefreshToken(
+    spotifySession.refreshToken ?? ""
+  );
+
+  return setNewCookie(spotifyStrategy.sessionKey, {
+    request,
+    path,
+    data: {
+      ...spotifySession,
+      accessToken: res.access_token,
+      expiresAt: Date.now() + res.expires_in * 1000,
+      tokenExpired: false,
+    },
+  });
+}
+
+export async function announceSpotifyTokenExpiration({
+  request,
+}: {
+  request: Request;
+}) {
+  const spotifySession = (await spotifyStrategy.getSession(request)) as
+    | (Session & { tokenExpired: boolean })
+    | null;
+
+  return setSessionByKey(spotifyStrategy.sessionKey, {
+    request,
+    data: {
+      ...spotifySession,
+      tokenExpired: true,
+    },
+  });
+}
 
 export const googleStrategy = new GoogleStrategy(
   {

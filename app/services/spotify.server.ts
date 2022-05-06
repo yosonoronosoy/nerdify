@@ -1,5 +1,3 @@
-import { prisma } from "~/db.server";
-import { getSpotifyTrackBySearchQuery } from "~/models/spotify.server";
 import { spotifySearchTrackResponse } from "~/zod-schemas/SpotifyTrackSearch";
 import { spotifyStrategy } from "./auth.server";
 
@@ -17,46 +15,54 @@ function getQuerystring(searchParams: SearchParams) {
 
 export async function searchTrack({
   searchQuery,
-  req,
+  request,
 }: {
-  searchQuery: `${string} - ${string}`;
-  req: Request;
+  searchQuery: string;
+  request: Request;
 }) {
-  const trackFromDB = await getSpotifyTrackBySearchQuery(searchQuery);
-
-  if (trackFromDB) {
-    return { kind: "FROM_DB", track: trackFromDB };
-  }
-
-  const [track, artist] = searchQuery.split(" – ");
+  const [artist, track] = searchQuery.split(" - ");
 
   const querystring = getQuerystring({
     q: `track:${track} artist:${artist}`,
     type: "track",
   });
+  const spotifyApiUrl = `${searchUrl}?${querystring}`;
 
-  const session = await spotifyStrategy.getSession(req);
-  const accessToken = session?.accessToken;
+  const sessionFromSpotifyStrategy = await spotifyStrategy.getSession(request);
+  const accessToken = sessionFromSpotifyStrategy?.accessToken;
 
   if (!accessToken) {
     throw new Error("No spotify access token provided");
   }
 
-  const response = await fetch(`${searchUrl}/${querystring}`, {
+  const response = await fetch(spotifyApiUrl, {
     headers: {
       Authorization: `Bearer ${accessToken}`,
     },
   });
 
   const json = await response.json();
-  const res = spotifySearchTrackResponse.parse(json);
+  const parsedResponse = spotifySearchTrackResponse.safeParse(json);
 
-  await prisma.spotifyTrack.create({
-    data: {
-      searchQuery,
-      trackId: res.tracks.items[0].id,
-    },
-  });
+  if (!parsedResponse.success) {
+    return {
+      kind: "parsingError",
+      error: parsedResponse.error.toString(),
+    } as const;
+  }
 
-  return { kind: "FROM_API", track: res };
+  if ("error" in parsedResponse.data) {
+    return {
+      kind: "expiredToken",
+      error: parsedResponse.data.error.message,
+    } as const;
+  }
+
+  const tracks = parsedResponse.data.tracks;
+
+  if (tracks.items.length === 0) {
+    return { kind: "error", error: "No tracks found" } as const;
+  }
+
+  return { kind: "success", data: tracks.items[0] } as const;
 }

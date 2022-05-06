@@ -1,4 +1,6 @@
 import type { LinksFunction, MetaFunction } from "@remix-run/node";
+import type { LoaderFunction } from "@remix-run/server-runtime";
+import type { Session } from "remix-auth-spotify";
 import {
   Links,
   Link,
@@ -17,9 +19,10 @@ import { ClipboardIcon } from "~/icons/ClipboardIcon";
 import { Fragment, useState } from "react";
 import { Dialog, Transition } from "@headlessui/react";
 import { MenuIcon, XIcon } from "@heroicons/react/outline";
-import type { LoaderFunction } from "@remix-run/server-runtime";
-import { spotifyStrategy } from "~/services/auth.server";
-import type { Session } from "remix-auth-spotify";
+import {
+  setSessionWithNewAccessToken,
+  spotifyStrategy,
+} from "~/services/auth.server";
 
 import tailwindStylesheetUrl from "./styles/tailwind.css";
 import DiscogsIcon from "./icons/DiscogsIcon";
@@ -35,9 +38,9 @@ export const meta: MetaFunction = () => ({
 });
 
 const navigation = [
-  { name: "Youtube", href: "youtube", icon: YoutubeIcon},
-  { name: "NTS", href: "nts", icon: RadioIcon},
-  { name: "Discogs", href: "discogs", icon: DiscogsIcon},
+  { name: "Youtube", href: "youtube", icon: YoutubeIcon },
+  { name: "NTS", href: "nts", icon: RadioIcon },
+  { name: "Discogs", href: "discogs", icon: DiscogsIcon },
   {
     name: "Copy/Paste",
     href: "copy-paste",
@@ -52,6 +55,16 @@ function classNames(...classes: string[]) {
 export const loader: LoaderFunction = async ({ request }) => {
   const spotifySession = await spotifyStrategy.getSession(request);
 
+  console.log({ accessTokenFromRootComponent: spotifySession?.accessToken });
+
+  if (!spotifySession) {
+    return null;
+  }
+
+  if (Date.now() > spotifySession.expiresAt) {
+    setSessionWithNewAccessToken({ request, spotifySession });
+  }
+
   return spotifySession;
 };
 
@@ -61,7 +74,6 @@ export default function App() {
   const user = data?.user;
 
   const location = useLocation();
-  const currentTab = location.pathname.split("/")?.[2] ?? '';
 
   return (
     <html lang="en" className="h-full">
@@ -135,7 +147,7 @@ export default function App() {
                           key={item.name}
                           to={user ? `dashboard/${item.href}` : "/"}
                           className={classNames(
-                            currentTab === item.href
+                            location.pathname.includes(item.href)
                               ? "bg-gray-100 text-gray-900"
                               : "text-gray-600 hover:bg-gray-50 hover:text-gray-900",
                             "group flex items-center rounded-md px-2 py-2 text-base font-medium"
@@ -143,7 +155,7 @@ export default function App() {
                         >
                           <item.icon
                             className={classNames(
-                              currentTab === item.href
+                              location.pathname.includes(item.href)
                                 ? "text-gray-500"
                                 : "text-gray-400 group-hover:text-gray-500",
                               "mr-4 h-6 w-6 flex-shrink-0"
@@ -207,7 +219,7 @@ export default function App() {
                       key={item.name}
                       to={user ? `dashboard/${item.href}` : "/"}
                       className={classNames(
-                        currentTab === item.href
+                        location.pathname.includes(item.href)
                           ? "bg-gray-100 text-gray-900"
                           : "text-gray-600 hover:bg-gray-50 hover:text-gray-900",
                         "group flex items-center rounded-md px-2 py-2 text-sm font-medium"
@@ -215,7 +227,7 @@ export default function App() {
                     >
                       <item.icon
                         className={classNames(
-                          currentTab === item.href
+                          location.pathname.includes(item.href)
                             ? "text-gray-500"
                             : "text-gray-400 group-hover:text-gray-500",
                           "mr-3 h-6 w-6 flex-shrink-0"

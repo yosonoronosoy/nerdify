@@ -67,17 +67,22 @@ export const spotifyTrackResponse = z.object({
 
 export type SpotifyTrackResponse = z.infer<typeof spotifyTrackResponse>;
 
-export const spotifySearchTrackResponse = z.object({
-  tracks: z.object({
-    href: z.string(),
-    items: z.array(spotifyTrackResponse),
-    limit: z.number(),
-    next: z.string(),
-    offset: z.number(),
-    previous: z.string(),
-    total: z.number(),
+export const spotifySearchTrackResponse = z.union([
+  z.object({
+    tracks: z.object({
+      href: z.string(),
+      items: z.array(spotifyTrackResponse),
+      limit: z.number(),
+      next: z.string().nullish(),
+      offset: z.number(),
+      previous: z.string().nullish(),
+      total: z.number(),
+    }),
   }),
-});
+  z.object({
+    error: z.object({ status: z.literal(401), message: z.string() }),
+  }),
+]);
 
 export type SpotifySearchTrackResponse = z.infer<
   typeof spotifySearchTrackResponse
