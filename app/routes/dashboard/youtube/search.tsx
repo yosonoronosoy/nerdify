@@ -3,7 +3,7 @@ import { Form, Link, useLoaderData } from "@remix-run/react";
 import { json } from "@remix-run/server-runtime";
 import type { SearchChannelResponse } from "~/services/youtube.server";
 import { searchChannel } from "~/services/youtube.server";
-import { ExclamationIcon } from "@heroicons/react/outline";
+import { ExclamationIcon, SearchIcon } from "@heroicons/react/outline";
 
 type LoaderData = SearchChannelResponse | null;
 
@@ -25,22 +25,8 @@ export default function YoutubeSearch() {
 
   return (
     <div>
-      <Form method="get" className="mx-auto w-64">
-        <label
-          htmlFor="search-query"
-          className="block text-sm font-medium text-gray-700"
-        >
-          Search
-        </label>
-        <div className="mt-1">
-          <input
-            type="text"
-            name="q"
-            id="search-query"
-            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-            placeholder="Enter your query"
-          />
-        </div>
+      <Form method="get" className="mx-auto w-3/4 md:w-3/4 lg:w-5/12">
+        <SearchBarWithButton />
       </Form>
       {data && data.items.length > 0 ? (
         <ul className="mt-16">
@@ -104,6 +90,35 @@ export default function YoutubeSearch() {
           </div>
         </div>
       ) : null}
+    </div>
+  );
+}
+
+export function SearchBarWithButton() {
+  return (
+    <div>
+      <label
+        htmlFor="searh-query"
+        className="block text-sm font-medium text-gray-700"
+      >
+        Search Channels
+      </label>
+      <div className="mt-1 flex rounded-md shadow-sm">
+        <input
+          type="text"
+          name="q"
+          id="search-query"
+          className="block w-full rounded-none rounded-l-md border-gray-300  focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+          placeholder="Enter channel name..."
+        />
+        <button
+          type="submit"
+          className="relative -ml-px inline-flex items-center space-x-2 rounded-r-md border border-gray-300 bg-gray-50 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+        >
+          <SearchIcon className="h-5 w-5 text-gray-400" aria-hidden="true" />
+          <span>Search</span>
+        </button>
+      </div>
     </div>
   );
 }

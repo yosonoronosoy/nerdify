@@ -1,6 +1,5 @@
 import { CheckIcon, MinusIcon, XIcon } from "@heroicons/react/outline";
 import { Form, useLoaderData } from "@remix-run/react";
-import { redirect } from "@remix-run/server-runtime";
 import { json } from "@remix-run/server-runtime";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -33,15 +32,22 @@ type SpotifyAvailability =
       kind: "UNAVAILABLE";
     };
 
-type ExtendedYoutubeResponse = Omit<YoutubePlaylistItems, "items"> & {
+type YoutubeResponseWithSpotifyAvailability = Omit<
+  YoutubePlaylistItems,
+  "items"
+> & {
   items: (YoutubePlaylistItems["items"][number] & {
     spotifyAvailability: SpotifyAvailability;
   })[];
 };
 
-type LoaderData = ExtendedYoutubeResponse | null;
+type ExtendedResponse = YoutubeResponseWithSpotifyAvailability & {
+  nextPageToken: string | null;
+};
 
-export const loader: LoaderFunction = async ({ params }) => {
+type LoaderData = ExtendedResponse | null;
+
+export const loader: LoaderFunction = async ({ params, request }) => {
   if (!params.id) {
     return null;
   }
@@ -51,13 +57,11 @@ export const loader: LoaderFunction = async ({ params }) => {
     part: "contentDetails",
   });
 
-  console.log(' =========== FAILED? ============ ')
-
   const playlistId =
     channelResponse.items[0].contentDetails.relatedPlaylists.uploads;
 
   const videosResponse = await queryPlaylistItems(playlistId);
-  const extendedResponse: ExtendedYoutubeResponse = {
+  const extendedResponse: YoutubeResponseWithSpotifyAvailability = {
     ...videosResponse,
     items: await Promise.all(
       videosResponse.items.map(async (item) => {
@@ -81,7 +85,10 @@ export const loader: LoaderFunction = async ({ params }) => {
     ),
   };
 
-  return json<ExtendedYoutubeResponse>(extendedResponse);
+  return json<ExtendedResponse>({
+    ...extendedResponse,
+    nextPageToken: channelResponse.nextPageToken ?? null,
+  });
 };
 
 export const action: ActionFunction = async ({ request }) => {
@@ -92,20 +99,11 @@ export const action: ActionFunction = async ({ request }) => {
     return null;
   }
 
-  // if (Date.now() > spotifySession.expiresAt) {
-  //   console.log('****** refreshing spotify session from channel ActionLoader ********');
-  //   setSessionWithNewAccessToken({ request, spotifySession });
-  // }
-
   const formData = await request.formData();
   const dataEntries = Object.fromEntries(formData);
   const _action = formData.get("_action");
-  console.log({_action})
 
   if (_action === "refreshToken") {
-    console.log(
-      "****** refreshing spotify session from channel ActionLoader ********"
-    );
     return setSessionWithNewAccessToken({ request, spotifySession });
   }
 
@@ -125,8 +123,8 @@ export const action: ActionFunction = async ({ request }) => {
 
     if (res.kind === "expiredToken") {
       // WARNING: not sure if this a good option
-      console.log("===== EXPIRED TOKEN ======");
-      return null
+      // implement this as a cron job or with setInterval
+      return setSessionWithNewAccessToken({ request, spotifySession });
     }
 
     let track: SpotifyTrack;
@@ -152,7 +150,6 @@ export const action: ActionFunction = async ({ request }) => {
   const spotifyTracks = Object.entries(dataEntries).map(promiseCallback);
 
   const res = await Promise.all(spotifyTracks);
-  console.log({ res });
 
   return null;
 };

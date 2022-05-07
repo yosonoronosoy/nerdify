@@ -33,11 +33,8 @@ export async function setNewCookie(
     path?: string;
   }
 ) {
-  console.log("========= setNewCookie ===========");
   const session = await setSessionByKey(sessionKey, { request, data });
   const redirectPath = path ?? new URL(request.url).pathname;
-  console.log({ redirectPath });
-  console.log("========= setNewCookie ===========");
 
   return redirect(redirectPath, {
     headers: { "Set-Cookie": await sessionStorage.commitSession(session) },

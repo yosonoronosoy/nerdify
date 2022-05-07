@@ -55,14 +55,12 @@ function classNames(...classes: string[]) {
 export const loader: LoaderFunction = async ({ request }) => {
   const spotifySession = await spotifyStrategy.getSession(request);
 
-  console.log({ accessTokenFromRootComponent: spotifySession?.accessToken });
-
   if (!spotifySession) {
     return null;
   }
 
   if (Date.now() > spotifySession.expiresAt) {
-    setSessionWithNewAccessToken({ request, spotifySession });
+    await setSessionWithNewAccessToken({ request, spotifySession });
   }
 
   return spotifySession;

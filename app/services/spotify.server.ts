@@ -13,6 +13,13 @@ function getQuerystring(searchParams: SearchParams) {
   });
 }
 
+function cleanString(string: string) {
+  return string
+    .replace(/[^\x20-\x7E]/g, "")
+    .replace(/\(|\)/g, "")
+    .trim();
+}
+
 export async function searchTrack({
   searchQuery,
   request,
@@ -20,7 +27,9 @@ export async function searchTrack({
   searchQuery: string;
   request: Request;
 }) {
-  const [artist, track] = searchQuery.split(" - ");
+  const [rawArtist, rawTrack] = searchQuery.split(" - ");
+  const artist = cleanString(rawArtist);
+  const track = cleanString(rawTrack);
 
   const querystring = getQuerystring({
     q: `track:${track} artist:${artist}`,
