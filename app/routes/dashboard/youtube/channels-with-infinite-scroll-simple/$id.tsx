@@ -75,11 +75,9 @@ export const loader: LoaderFunction = async ({ params, request }) => {
     return null;
   }
 
-  const { start, limit, nextPageToken } = getStartLimit(
+  const { nextPageToken } = getStartLimit(
     new URLSearchParams(new URL(request.url).searchParams)
   );
-
-  console.log({ start, limit, nextPageToken });
 
   const channelResponse = await queryYoutubeChannel({
     id: params.id,
@@ -219,6 +217,14 @@ export default function Channel() {
   const [, setSearchParams] = useSearchParams();
 
   const [items, setItems] = useState(data?.items ?? []);
+  const [currentEditingTrack, setCurrentEditingTrack] = useState<string | null>(
+    null
+  );
+
+  const [editingTrackTitle, setEditingTrackTitle] = useState<
+    string | undefined
+  >(undefined);
+
   const params = useParams();
   const pageId = params.id;
 
@@ -280,6 +286,14 @@ export default function Channel() {
     prevData.current = { ...data, items: newItems };
   }, [data]);
 
+  useEffect(() => {
+    if (!currentEditingTrack || !items) return;
+
+    setEditingTrackTitle(
+      items.find((item) => item.id === currentEditingTrack)?.snippet.title
+    );
+  }, [currentEditingTrack, items]);
+
   return (
     <main className="px-4 sm:px-6 lg:px-8">
       <div className="min-w-full border border-gray-200">
@@ -296,10 +310,10 @@ export default function Channel() {
           <span className="col-span-2 flex items-center justify-center text-sm font-semibold">
             Thumbnail
           </span>
-          <span className="col-span-5 flex items-center justify-start pl-12 text-sm font-semibold">
+          <span className="col-span-4 flex items-center justify-start pl-12 text-sm font-semibold">
             Title
           </span>
-          <span className="col-span-4 flex items-center justify-center text-sm font-semibold">
+          <span className="col-span-3 flex items-center justify-center text-sm font-semibold">
             Available on Spotify
           </span>
         </div>
@@ -323,10 +337,6 @@ export default function Channel() {
             {rowVirtualizer.virtualItems.map((virtualRow) => {
               const track = items[virtualRow.index];
 
-              if (!track) {
-                return null;
-              }
-
               return (
                 <div
                   key={virtualRow.key}
@@ -339,50 +349,131 @@ export default function Channel() {
                     transform: `translateY(${virtualRow.start}px)`,
                   }}
                 >
-                  <div className="relative flex items-center justify-center">
-                    {selectedTracks.includes(track) && (
-                      <div className="absolute inset-y-[-16px]  left-0 w-0.5 bg-indigo-600" />
-                    )}
-                    <input
-                      type="checkbox"
-                      className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                      name={track.id}
-                      value={track.snippet.title}
-                      checked={selectedTracks.includes(track)}
-                      onChange={(e) =>
-                        setSelectedTracks(
-                          e.target.checked
-                            ? [...selectedTracks, track]
-                            : selectedTracks.filter((p) => p !== track)
-                        )
-                      }
-                    />
-                  </div>
-                  <div className="col-span-2 flex items-center justify-center whitespace-nowrap text-sm text-gray-500">
-                    <img
-                      src={track.snippet.thumbnails.default?.url}
-                      alt="youtube-video-thumbnail"
-                    />
-                  </div>
-                  <div
-                    className={classNames(
-                      "col-span-5 flex items-center justify-start whitespace-nowrap pl-12 text-sm font-medium",
-                      selectedTracks.includes(track)
-                        ? "text-indigo-600"
-                        : "text-gray-900"
-                    )}
-                  >
-                    {track.snippet.title}
-                  </div>
-                  <div className="col-span-4 flex  items-center justify-center whitespace-nowrap text-sm text-gray-500">
-                    {track.spotifyAvailability.kind === "UNCHECKED" ? (
-                      <MinusIcon className="h-6 w-6" />
-                    ) : track.spotifyAvailability.kind === "AVAILABLE" ? (
-                      <CheckIcon className="h-6 w-6 text-green-500" />
-                    ) : (
-                      <XIcon className="h-6 w-6 text-red-500" />
-                    )}
-                  </div>
+                  {track ? (
+                    <>
+                      <div className="relative flex items-center justify-center">
+                        {selectedTracks.includes(track) && (
+                          <div className="absolute inset-y-[-16px]  left-0 w-0.5 bg-indigo-600" />
+                        )}
+                        <input
+                          type="checkbox"
+                          className={classNames(
+                            "h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 sm:left-6",
+                            currentEditingTrack === track.id
+                              ? "bg-gray-200 opacity-60"
+                              : ""
+                          )}
+                          name={track.id}
+                          value={track.snippet.title}
+                          checked={selectedTracks.includes(track)}
+                          disabled={currentEditingTrack === track.id}
+                          onChange={(e) =>
+                            setSelectedTracks(
+                              e.target.checked
+                                ? [...selectedTracks, track]
+                                : selectedTracks.filter((p) => p !== track)
+                            )
+                          }
+                        />
+                      </div>
+                      <div className="col-span-2 flex items-center justify-center whitespace-nowrap text-sm text-gray-500">
+                        <img
+                          src={track.snippet.thumbnails.default?.url}
+                          alt="youtube-video-thumbnail"
+                        />
+                      </div>
+                      <div
+                        className={classNames(
+                          "col-span-4 flex items-center justify-start whitespace-nowrap text-sm font-medium",
+                          selectedTracks.includes(track)
+                            ? "text-indigo-600"
+                            : "text-gray-900",
+                          currentEditingTrack !== track.id ? "pl-12" : ""
+                        )}
+                      >
+                        {currentEditingTrack === track.id ? (
+                          <div className="flex w-full gap-2">
+                            <label htmlFor={track.id} className="sr-only">
+                              Track
+                            </label>
+                            <input
+                              type="text"
+                              name={track.id}
+                              id={track.id}
+                              className="block flex-1 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                              value={editingTrackTitle}
+                              onChange={(e) =>
+                                setEditingTrackTitle(e.target.value)
+                              }
+                            />
+                            <button
+                              type="button"
+                              className="inline-flex items-center rounded border border-transparent bg-indigo-100 px-2.5 py-1.5 text-xs font-medium text-indigo-700 hover:bg-indigo-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                              onClick={() => {
+                                setItems(
+                                  items.map((p) =>
+                                    p.id === track.id
+                                      ? {
+                                          ...p,
+                                          snippet: {
+                                            ...p.snippet,
+                                            title:
+                                              !editingTrackTitle ||
+                                              editingTrackTitle === ""
+                                                ? track.snippet.title
+                                                : editingTrackTitle.trim(),
+                                          },
+                                        }
+                                      : p
+                                  )
+                                );
+                                setCurrentEditingTrack(null);
+                              }}
+                            >
+                              Done
+                            </button>
+                          </div>
+                        ) : (
+                          track.snippet.title
+                        )}
+                      </div>
+                      <div className="col-span-3 flex  items-center justify-center whitespace-nowrap text-sm text-gray-500">
+                        {track.spotifyAvailability.kind === "UNCHECKED" ? (
+                          <MinusIcon className="h-5 w-5" />
+                        ) : track.spotifyAvailability.kind === "AVAILABLE" ? (
+                          <CheckIcon className="h-5 w-5 text-green-500" />
+                        ) : (
+                          <XIcon className="h-5 w-5 text-red-500" />
+                        )}
+                      </div>
+                      <div className="col-span-2 flex items-center justify-start gap-4 text-sm">
+                        {currentEditingTrack !== track.id ? (
+                          <button
+                            className="text-indigo-600 hover:text-indigo-900"
+                            onClick={() => setCurrentEditingTrack(track.id)}
+                          >
+                            Edit
+                          </button>
+                        ) : null}
+                        {track.spotifyAvailability.kind === "UNAVAILABLE" ? (
+                          <button
+                            className="text-indigo-600 hover:text-indigo-900"
+                            name="_action"
+                            value="recheck"
+                          >
+                            Recheck
+                          </button>
+                        ) : null}
+                      </div>
+                    </>
+                  ) : transition.state === "loading" ? (
+                    <div
+                      key={virtualRow.key}
+                      className="grid-span-2 col-start-7 self-center"
+                    >
+                      <div className="inline-block  h-12 w-12 animate-spin rounded-full  border-t-8 border-t-indigo-500" />
+                    </div>
+                  ) : null}
                 </div>
               );
             })}
