@@ -39,8 +39,8 @@ export const youtubePlaylistItemSchema = z.object({
 export const youtubePlaylistItemsSchema = z.object({
   kind: z.literal("youtube#playlistItemListResponse"),
   etag: z.string(),
-  // nextPageToken: z.string().optional(),
-  // prevPageToken: z.string().optional(),
+  nextPageToken: z.string().optional(),
+  prevPageToken: z.string().optional(),
   pageInfo: z.object({
     totalResults: z.number(),
     resultsPerPage: z.number(),

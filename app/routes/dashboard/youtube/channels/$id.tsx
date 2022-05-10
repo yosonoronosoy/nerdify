@@ -1,7 +1,7 @@
 import { CheckIcon, MinusIcon, XIcon } from "@heroicons/react/outline";
 import { Form, useLoaderData } from "@remix-run/react";
 import { json } from "@remix-run/server-runtime";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   createSpotifyTrack,
   getSpotifyTrackBySearchQuery,
@@ -87,7 +87,7 @@ export const loader: LoaderFunction = async ({ params, request }) => {
 
   return json<ExtendedResponse>({
     ...extendedResponse,
-    nextPageToken: channelResponse.nextPageToken ?? null,
+    nextPageToken: channelResponse.nextPageToken ?? '',
   });
 };
 
@@ -158,6 +158,9 @@ function classNames(...classes: string[]) {
   return classes.filter(Boolean).join(" ");
 }
 
+const isServerRender = typeof document === "undefined";
+const useSSRLayoutEffect = isServerRender ? () => {} : useLayoutEffect;
+
 export default function Channel() {
   const data = useLoaderData<LoaderData>();
   const tracks = data?.items ?? [];
@@ -167,7 +170,7 @@ export default function Channel() {
   const [indeterminate, setIndeterminate] = useState(false);
   const [selectedTracks, setSelectedTracks] = useState<typeof tracks>([]);
 
-  useEffect(() => {
+  useSSRLayoutEffect(() => {
     const isIndeterminate =
       selectedTracks.length > 0 && selectedTracks.length < tracks.length;
     setChecked(selectedTracks.length === tracks.length);

@@ -36,9 +36,14 @@ export async function queryYoutubeChannel(searchParams: SearchParams) {
   return channelResponse;
 }
 
-export async function queryPlaylistItems(playlistId: string) {
+export async function queryPlaylistItems(
+  playlistId: string,
+  pageToken?: string
+) {
   const playlistQuerystring = getQuerystring({
     playlistId,
+    maxResults: "50",
+    pageToken: pageToken ?? "",
   });
 
   const videosRawRes = await fetch(
