@@ -31,6 +31,8 @@ export async function searchTrack({
   const artist = cleanString(rawArtist);
   const track = cleanString(rawTrack);
 
+  console.log({ artist, track });
+
   const querystring = getQuerystring({
     q: `track:${track} artist:${artist}`,
     type: "track",
@@ -51,12 +53,20 @@ export async function searchTrack({
   });
 
   const json = await response.json();
+
   const parsedResponse = spotifySearchTrackResponse.safeParse(json);
 
   if (!parsedResponse.success) {
     return {
       kind: "parsingError",
       error: parsedResponse.error.toString(),
+    } as const;
+  }
+
+  if (!parsedResponse.data) {
+    return {
+      kind: "noData",
+      error: "no data found",
     } as const;
   }
 
@@ -73,5 +83,5 @@ export async function searchTrack({
     return { kind: "error", error: "No tracks found" } as const;
   }
 
-  return { kind: "success", data: tracks.items[0] } as const;
+  return { kind: "success", data: tracks.items } as const;
 }

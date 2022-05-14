@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { thumbnailSchema } from "./YoutubeThumbnailSchema";
 
 export const youtubeChannelWithContentDetailsSchema = z.object({
   kind: z.literal("youtube#channel"),
@@ -10,6 +11,21 @@ export const youtubeChannelWithContentDetailsSchema = z.object({
       favorites: z.string().optional(),
       uploads: z.string(),
     }),
+  }),
+  snippet: z.object({
+    title: z.string(),
+    description: z.string(),
+    customUrl: z.string(),
+    publishedAt: z.string(),
+    thumbnails: z
+      .object({
+        default: thumbnailSchema,
+        medium: thumbnailSchema,
+        high: thumbnailSchema,
+        standard: thumbnailSchema,
+        maxres: thumbnailSchema,
+      })
+      .partial(),
   }),
 });
 

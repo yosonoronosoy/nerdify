@@ -9,6 +9,7 @@ generator client {
 
 enum Status {
   PROCESSED
+  PROCESSING
   OUTDATED
   UNPROCESSED
 }
@@ -16,6 +17,7 @@ enum Status {
 enum Availability {
   AVAILABLE
   UNAVAILABLE
+  PENDING
 }
 
 model User {
@@ -45,18 +47,32 @@ model YoutubePlaylist {
 }
 
 model YoutubeChannel {
-  id        String @id @default(cuid())
-  title     String
-  channelId String @unique
-  status    Status
+  id            String         @id @default(cuid())
+  title         String
+  channelId     String         @unique
+  status        Status
+  spotifyTracks SpotifyTrack[]
+}
+
+model YoutubeVideo {
+  id             String         @id @default(cuid())
+  title          String
+  channelId      String         @unique
+  youtubeVideoId String         @unique
+  spotifyTracks  SpotifyTrack[]
 }
 
 model SpotifyTrack {
-  id             String       @id @default(cuid())
-  trackId        String?      @unique
+  id             String           @id @default(cuid())
+  trackId        String?          @unique
   searchQuery    String
   availability   Availability
-  youtubeVideoId String
+  youtubeVideoId String?
+  youtubeChannel YoutubeChannel[]
+  youtubeVideo   YoutubeVideo?    @relation(fields: [youtubeVideoId], references: [id])
+  images         Json?
+  artists        Json?
+  trackUrl       String?
 }
 
 model Note {

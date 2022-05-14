@@ -16,7 +16,6 @@ export const loader: LoaderFunction = async ({ request }) => {
   }
 
   const res = await searchChannel(searchQuery);
-
   return json<SearchChannelResponse>(res);
 };
 

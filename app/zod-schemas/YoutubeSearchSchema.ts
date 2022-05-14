@@ -1,10 +1,6 @@
 import { z } from "zod";
+import { thumbnailSchema } from "./YoutubeThumbnailSchema";
 
-const thumnbailSchema = z.object({
-  url: z.string(),
-  width: z.number().nullish(),
-  height: z.number().nullish(),
-});
 
 const videoIdSchema = z.object({
   kind: z.literal("youtube#video"),
@@ -32,11 +28,11 @@ const youtubeSearchResultSchema = z.object({
     description: z.string(),
     thumbnails: z
       .object({
-        default: thumnbailSchema,
-        medium: thumnbailSchema,
-        high: thumnbailSchema,
-        standard: thumnbailSchema,
-        maxres: thumnbailSchema,
+        default: thumbnailSchema,
+        medium: thumbnailSchema,
+        high: thumbnailSchema,
+        standard: thumbnailSchema,
+        maxres: thumbnailSchema,
       })
       .partial(),
     channelTitle: z.string(),

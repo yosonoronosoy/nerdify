@@ -1,32 +1,12 @@
-import {
-  CheckIcon,
-  MinusIcon,
-  RefreshIcon,
-  XIcon,
-} from "@heroicons/react/outline";
-import {
-  Form,
-  useLoaderData,
-  useParams,
-  useSearchParams,
-  useTransition,
-} from "@remix-run/react";
+import { CheckIcon, MinusIcon, XIcon } from "@heroicons/react/outline";
+import { Form, useLoaderData } from "@remix-run/react";
 import { json } from "@remix-run/server-runtime";
+import { useLayoutEffect, useRef, useState } from "react";
 import {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-} from "react";
-import {
-  createSpotifyTrack,
+  createSpotifyTrackFromYoutubeChannel,
   getSpotifyTrackBySearchQuery,
 } from "~/models/spotify.server";
-import {
-  setSessionWithNewAccessToken,
-  spotifyStrategy,
-} from "~/services/auth.server";
+import { spotifyStrategy } from "~/services/auth.server";
 import { searchTrack } from "~/services/spotify.server";
 import {
   queryPlaylistItems,
@@ -35,10 +15,13 @@ import {
 
 import type { YoutubePlaylistItems } from "~/zod-schemas/YoutubePlaylistSchema";
 import type { SpotifyTrack } from "~/models/spotify.server";
+import { createYoutubeVideo, YoutubeVideo } from "~/models/youtubeVideo.server";
 import type { ActionFunction, LoaderFunction } from "@remix-run/server-runtime";
-import { useVirtual } from "react-virtual";
-import { BigSpinner } from "~/icons/BigSpinner";
-import Tooltip from "@reach/tooltip";
+import {
+  createYoutubeChannel,
+  getYoutubeChannel,
+} from "~/models/youtubeChannel.server";
+import { Dialog } from "@headlessui/react";
 
 type SpotifyAvailability =
   | {
@@ -50,6 +33,9 @@ type SpotifyAvailability =
     }
   | {
       kind: "UNAVAILABLE";
+    }
+  | {
+      kind: "PENDING";
     };
 
 type YoutubeResponseWithSpotifyAvailability = Omit<
@@ -68,13 +54,8 @@ type ExtendedResponse = YoutubeResponseWithSpotifyAvailability & {
 
 type LoaderData = ExtendedResponse | null;
 
-const LIMIT = 50;
-const DATA_OVERSCAN = 0;
-
-const getStartLimit = (searchParams: URLSearchParams) => ({
+const getNextPageToken = (searchParams: URLSearchParams) => ({
   nextPageToken: searchParams.get("nextPageToken") ?? "",
-  start: Number(searchParams.get("start") ?? "0"),
-  limit: Number(searchParams.get("limit") ?? LIMIT.toString()),
 });
 
 export const loader: LoaderFunction = async ({ params, request }) => {
@@ -82,14 +63,23 @@ export const loader: LoaderFunction = async ({ params, request }) => {
     return null;
   }
 
-  const { nextPageToken } = getStartLimit(
+  const { nextPageToken } = getNextPageToken(
     new URLSearchParams(new URL(request.url).searchParams)
   );
 
   const channelResponse = await queryYoutubeChannel({
     id: params.id,
-    part: "contentDetails",
+    part: "contentDetails,snippet",
   });
+
+  const channelId = channelResponse.items[0].id;
+  const youtubeChannelFromDB = await getYoutubeChannel({ channelId });
+  if (!youtubeChannelFromDB) {
+    await createYoutubeChannel({
+      title: channelResponse.items[0].snippet.title,
+      channelId,
+    });
+  }
 
   const playlistId =
     channelResponse.items[0].contentDetails.relatedPlaylists.uploads;
@@ -133,8 +123,14 @@ export const loader: LoaderFunction = async ({ params, request }) => {
   );
 };
 
-export const action: ActionFunction = async ({ request }) => {
+export const action: ActionFunction = async ({ request, params }) => {
   const spotifySession = await spotifyStrategy.getSession(request);
+
+  const youtubeChannelId = params.id;
+
+  if (!youtubeChannelId) {
+    return null;
+  }
 
   if (!spotifySession) {
     return null;
@@ -142,11 +138,10 @@ export const action: ActionFunction = async ({ request }) => {
 
   const formData = await request.formData();
   const dataEntries = Object.fromEntries(formData);
-  const _action = formData.get("_action");
 
-  if (_action === "refreshToken") {
-    return setSessionWithNewAccessToken({ request, spotifySession });
-  }
+  // if (_action === "refreshToken") {
+  //   return setSessionWithNewAccessToken({ request, spotifySession });
+  // }
 
   const promiseCallback = async ([videoId, searchQuery]: [
     string,
@@ -158,40 +153,61 @@ export const action: ActionFunction = async ({ request }) => {
     });
 
     if (res.kind === "parsingError") {
-      // WARNING: check this
+      console.log("============= PARSING ERROR ======================");
+      console.log(res.error);
       return null;
     }
 
     if (res.kind === "expiredToken") {
       // WARNING: not sure if this a good option
-      // implement this as a cron job or with setInterval
-      return setSessionWithNewAccessToken({ request, spotifySession });
+      // WARNING: maybe implement this as a cron job or with setInterval
+      console.log("============= EXPIRED TOKEN ======================");
+      return null;
     }
 
-    let track: SpotifyTrack;
+    if (res.kind === "noData") {
+      console.log("=========== NO DATA =====================");
+      console.log(res.error);
+      return null;
+    }
 
     if (res.kind === "error") {
-      track = await createSpotifyTrack({
+      return createYoutubeVideo({
+        title: searchQuery.toString(),
+        channelId: youtubeChannelId,
         youtubeVideoId: videoId,
-        searchQuery: searchQuery.toString(),
-        availability: "UNAVAILABLE",
-      });
-    } else {
-      track = await createSpotifyTrack({
-        searchQuery: searchQuery.toString(),
-        trackId: res.data.id,
-        availability: "AVAILABLE",
-        youtubeVideoId: videoId,
+        spotifyTracks: [
+          {
+            youtubeVideoId: videoId,
+            searchQuery: searchQuery.toString(),
+            availability: "UNAVAILABLE",
+            trackId: null,
+            trackUrl: null,
+          },
+        ],
       });
     }
 
-    return track;
+    return createYoutubeVideo({
+      title: searchQuery.toString(),
+      channelId: youtubeChannelId,
+      youtubeVideoId: videoId,
+      spotifyTracks: res.data.map((item) => ({
+        trackId: item.id,
+        searchQuery: searchQuery.toString(),
+        availability: "PENDING",
+        youtubeVideoId: videoId,
+        trackUrl: item.external_urls.spotify,
+        artists: item.artists,
+        images: item.album.images,
+      })),
+    });
   };
 
   const spotifyTracks = Object.entries(dataEntries).map(promiseCallback);
 
   const res = await Promise.all(spotifyTracks);
-  return res;
+  return json(res.filter((item) => item !== null));
 };
 
 function classNames(...classes: string[]) {
@@ -203,294 +219,188 @@ const useSSRLayoutEffect = isServerRender ? () => {} : useLayoutEffect;
 
 export default function Channel() {
   const data = useLoaderData<LoaderData>();
-  const totalItems = data?.totalItems ?? 0;
-  const nextPageToken = data?.nextPageToken ?? "";
+  const tracks = data?.items ?? [];
 
   const checkbox = useRef<HTMLInputElement | null>(null);
   const [checked, setChecked] = useState(false);
   const [indeterminate, setIndeterminate] = useState(false);
-  const [selectedTracks, setSelectedTracks] = useState<
-    YoutubeResponseWithSpotifyAvailability["items"]
-  >([]);
+  const [selectedTracks, setSelectedTracks] = useState<typeof tracks>([]);
+
+  useSSRLayoutEffect(() => {
+    const isIndeterminate =
+      selectedTracks.length > 0 && selectedTracks.length < tracks.length;
+    setChecked(selectedTracks.length === tracks.length);
+    setIndeterminate(isIndeterminate);
+
+    // WARNING: check this
+    if (checkbox.current) {
+      checkbox.current.indeterminate = isIndeterminate;
+    }
+  }, [selectedTracks, tracks.length]);
 
   function toggleAll() {
-    setSelectedTracks(checked || indeterminate ? [] : data?.items ?? []);
+    setSelectedTracks(checked || indeterminate ? [] : tracks);
     setChecked(!checked && !indeterminate);
     setIndeterminate(false);
   }
 
-  const prevData = useRef<LoaderData>(null);
-
-  const [, setSearchParams] = useSearchParams();
-
-  const [items, setItems] = useState(data?.items ?? []);
-  const [currentEditingTrack, setCurrentEditingTrack] = useState<string | null>(
-    null
-  );
-
-  const [editingTrackTitle, setEditingTrackTitle] = useState<
-    string | undefined
-  >(undefined);
-
-  const params = useParams();
-  const pageId = params.id;
-
-  const transition = useTransition();
-
-  const startRef = useRef(0);
-  const parentRef = useRef<HTMLDivElement>(null);
-
-  const rowVirtualizer = useVirtual({
-    size: totalItems,
-    parentRef,
-    estimateSize: useCallback(() => 90 + 16 * 2, []),
-    initialRect: { width: 0, height: 800 },
-  });
-
-  const [lastVirtualItem] = [...rowVirtualizer.virtualItems].reverse();
-  if (!lastVirtualItem) {
-    throw new Error("this should never happen");
-  }
-
-  let newStart = startRef.current;
-  const upperBoundary = startRef.current + LIMIT - DATA_OVERSCAN;
-
-  if (lastVirtualItem.index > upperBoundary) {
-    // user is scrolling down. Move the window down
-    newStart = startRef.current + LIMIT;
-  }
-
-  useSSRLayoutEffect(() => {
-    const tracks = data?.items ?? [];
-
-    const isIndeterminate =
-      selectedTracks.length > 0 && selectedTracks.length < tracks.length;
-
-    setChecked(selectedTracks.length === tracks.length);
-    setIndeterminate(isIndeterminate);
-  }, [data?.items, selectedTracks.length]);
-
-  useEffect(() => {
-    if (newStart === startRef.current) return;
-
-    setSearchParams({
-      start: String(newStart),
-      limit: String(LIMIT),
-      nextPageToken: nextPageToken,
-    });
-
-    startRef.current = newStart;
-  }, [newStart, pageId, nextPageToken, setSearchParams]);
-
-  useEffect(() => {
-    if (!data) {
-      return;
-    }
-
-    //FIX: need to correct for user getting back to the page
-    //FIX: sometimes it will load the same data again
-    const dataItems = data.items;
-    const newItems = [...(prevData.current?.items ?? []), ...dataItems];
-    setItems(newItems);
-    prevData.current = { ...data, items: newItems };
-  }, [data]);
-
-  useEffect(() => {
-    if (!currentEditingTrack || !items) return;
-
-    setEditingTrackTitle(
-      items.find((item) => item.id === currentEditingTrack)?.snippet.title
-    );
-  }, [currentEditingTrack, items]);
-
-  //TODO: add tooltips explaining edit and recheck functionality
   return (
-    <main className="px-4 sm:px-6 lg:px-8">
-      <div className="min-w-full border border-gray-200">
-        <div className="grid grid-cols-12 border-b border-gray-300 bg-gray-50 py-4">
-          <div className="relative flex items-center justify-center">
-            <input
-              type="checkbox"
-              className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 sm:left-6"
-              ref={checkbox}
-              checked={checked}
-              onChange={toggleAll}
-            />
-          </div>
-          <span className="col-span-2 flex items-center justify-center text-sm font-semibold">
-            Thumbnail
-          </span>
-          <span className="col-span-4 flex items-center justify-start pl-8 text-sm font-semibold">
-            Title
-          </span>
-          <span className="col-span-3 flex items-center justify-center text-sm font-semibold">
-            Available on Spotify
-          </span>
-        </div>
-
-        <div
-          ref={parentRef}
-          className="List"
-          style={{
-            height: `800px`,
-            width: `100%`,
-            overflow: "auto",
-          }}
+    <div className="px-4 sm:px-6 lg:px-8">
+      <Form method="post">
+        <button
+          className="inline-flex items-center rounded border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-30"
+          name="_action"
+          value="refreshToken"
         >
-          <Form
-            method="post"
-            className="relative w-full divide-y divide-gray-200"
-            style={{
-              height: `${rowVirtualizer.totalSize}px`,
-            }}
-          >
-            {rowVirtualizer.virtualItems.map((virtualRow) => {
-              const track = items[virtualRow.index];
+          Refresh Token
+        </button>
+      </Form>
+      <div className="mt-8 flex flex-col">
+        <div className="-my-2 -mx-4 overflow-x-auto sm:-mx-6 lg:-mx-8">
+          <div className="inline-block min-w-full py-2 align-middle md:px-6 lg:px-8">
+            <div className="relative overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
+              {selectedTracks.length > 0 && (
+                <div className="absolute top-0 left-12 flex h-12 items-center space-x-3 bg-gray-50 sm:left-16">
+                  <button
+                    className="inline-flex items-center rounded border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-30"
+                    form="bulk-process-form"
+                  >
+                    Check Spotify Availability
+                  </button>
 
-              return (
-                <div
-                  key={virtualRow.key}
-                  className={classNames(
-                    "absolute grid w-full grid-cols-12 py-4",
-                    selectedTracks.includes(track) ? "bg-gray-50" : ""
-                  )}
-                  style={{
-                    height: `${virtualRow.size}px`,
-                    transform: `translateY(${virtualRow.start}px)`,
-                  }}
-                >
-                  {track ? (
-                    <>
-                      <div className="relative flex items-center justify-center">
-                        {selectedTracks.includes(track) && (
-                          <div className="absolute inset-y-[-16px]  left-0 w-0.5 bg-indigo-600" />
-                        )}
+                  {/* TODO: only show this when the tracks are available in spotify */}
+                  <button className="inline-flex items-center rounded border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-30">
+                    Create spotify playlist
+                  </button>
+                  <button className="inline-flex items-center rounded border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-30">
+                    Recheck Unavailable Tracks
+                  </button>
+                </div>
+              )}
+              <Form method="post" id="bulk-process-form">
+                <table className="min-w-full table-fixed divide-y divide-gray-300">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th
+                        scope="col"
+                        className="relative w-12 px-6 sm:w-16 sm:px-8"
+                      >
                         <input
                           type="checkbox"
-                          className={classNames(
-                            "h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 sm:left-6",
-                            currentEditingTrack === track.id
-                              ? "bg-gray-200 opacity-60"
-                              : ""
-                          )}
-                          name={track.id}
-                          value={track.snippet.title}
-                          checked={selectedTracks.includes(track)}
-                          disabled={currentEditingTrack === track.id}
-                          onChange={(e) =>
-                            setSelectedTracks(
-                              e.target.checked
-                                ? [...selectedTracks, track]
-                                : selectedTracks.filter((p) => p !== track)
-                            )
-                          }
+                          className="absolute left-4 top-1/2 -mt-2 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 sm:left-6"
+                          ref={checkbox}
+                          checked={checked}
+                          onChange={toggleAll}
                         />
-                      </div>
-
-                      <div className="col-span-2 flex items-center justify-center whitespace-nowrap text-sm text-gray-500">
-                        <img
-                          src={track.snippet.thumbnails.default?.url}
-                          alt="youtube-video-thumbnail"
-                        />
-                      </div>
-                      <div
-                        className={classNames(
-                          "col-span-4 flex items-center justify-start whitespace-nowrap text-sm font-medium",
-                          selectedTracks.includes(track)
-                            ? "text-indigo-600"
-                            : "text-gray-900",
-                          currentEditingTrack !== track.id ? "pl-8" : ""
-                        )}
+                      </th>
+                      <th
+                        scope="col"
+                        className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
                       >
-                        {currentEditingTrack === track.id ? (
-                          <div className="flex w-full gap-2">
-                            <label htmlFor={track.id} className="sr-only">
-                              Track
-                            </label>
-                            <input
-                              type="text"
-                              name={track.id}
-                              id={track.id}
-                              className="block flex-1 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                              value={editingTrackTitle}
-                              onChange={(e) =>
-                                setEditingTrackTitle(e.target.value)
-                              }
-                            />
-                            <button
-                              type="button"
-                              className="inline-flex items-center rounded border border-transparent bg-indigo-100 px-2.5 py-1.5 text-xs font-medium text-indigo-700 hover:bg-indigo-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-                              onClick={() => {
-                                setItems(
-                                  items.map((p) =>
-                                    p.id === track.id
-                                      ? {
-                                          ...p,
-                                          snippet: {
-                                            ...p.snippet,
-                                            title:
-                                              !editingTrackTitle ||
-                                              editingTrackTitle === ""
-                                                ? track.snippet.title
-                                                : editingTrackTitle.trim(),
-                                          },
-                                        }
-                                      : p
-                                  )
-                                );
-                                setCurrentEditingTrack(null);
-                              }}
-                            >
-                              Done
-                            </button>
-                          </div>
-                        ) : (
-                          track.snippet.title
-                        )}
-                      </div>
-                      <div className="col-span-3 flex  items-center justify-center whitespace-nowrap text-sm text-gray-500">
-                        {track.spotifyAvailability.kind === "UNCHECKED" ? (
-                          <MinusIcon className="h-5 w-5" />
-                        ) : track.spotifyAvailability.kind === "AVAILABLE" ? (
-                          <CheckIcon className="h-5 w-5 text-green-500" />
-                        ) : (
-                          <div className="flex gap-4">
-                            <XIcon className="h-5 w-5 text-red-500" />
-                            <button
-                              name="_action"
-                              value={`recheck:${track.id}:${track.snippet.title}`}
-                            >
-                              <RefreshIcon className="h-5 w-5 text-gray-400 transition-colors hover:text-gray-300" />
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                      <div className="col-span-2 flex items-center justify-start text-sm">
-                        {currentEditingTrack !== track.id &&
-                        track.spotifyAvailability.kind !== "AVAILABLE" ? (
-                          <button
-                            className="text-indigo-600 hover:text-indigo-900"
-                            onClick={() => setCurrentEditingTrack(track.id)}
-                          >
-                            Edit
-                          </button>
-                        ) : null}
-                      </div>
-                    </>
-                  ) : transition.state === "loading" ? (
-                    <div
-                      key={virtualRow.key}
-                      className="grid-span-2 col-start-7 self-center"
-                    >
-                      <BigSpinner />
-                    </div>
-                  ) : null}
-                </div>
-              );
-            })}
-          </Form>
+                        Thumbnail
+                      </th>
+                      <th
+                        scope="col"
+                        className="min-w-[12rem] py-3.5 pr-3 text-left text-sm font-semibold text-gray-900"
+                      >
+                        Title
+                      </th>
+                      <th
+                        scope="col"
+                        className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
+                      >
+                        Channel
+                      </th>
+                      <th
+                        scope="col"
+                        className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
+                      >
+                        Available on Spotify
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200 bg-white">
+                    {tracks.map((track) => (
+                      <tr
+                        key={track.id}
+                        className={
+                          selectedTracks.includes(track)
+                            ? "bg-gray-50"
+                            : undefined
+                        }
+                      >
+                        <td className="relative w-12 px-6 sm:w-16 sm:px-8">
+                          {selectedTracks.includes(track) && (
+                            <div className="absolute inset-y-0 left-0 w-0.5 bg-indigo-600" />
+                          )}
+                          <input
+                            type="checkbox"
+                            className="absolute left-4 top-1/2 -mt-2 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 sm:left-6"
+                            name={track.id}
+                            value={track.snippet.title}
+                            checked={selectedTracks.includes(track)}
+                            onChange={(e) =>
+                              setSelectedTracks(
+                                e.target.checked
+                                  ? [...selectedTracks, track]
+                                  : selectedTracks.filter((p) => p !== track)
+                              )
+                            }
+                          />
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                          <img
+                            src={track.snippet.thumbnails.default?.url}
+                            alt="youtube-video-thumbnail"
+                          />
+                        </td>
+                        <td
+                          className={classNames(
+                            "whitespace-nowrap py-4 pr-3 text-sm font-medium",
+                            selectedTracks.includes(track)
+                              ? "text-indigo-600"
+                              : "text-gray-900"
+                          )}
+                        >
+                          {track.snippet.title}
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                          {track.snippet.channelTitle}
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                          {/* FIX:  implement this */}
+                          {track.spotifyAvailability.kind === "UNCHECKED" ? (
+                            <MinusIcon className="h-4 w-4" />
+                          ) : track.spotifyAvailability.kind === "AVAILABLE" ? (
+                            <CheckIcon className="h-4 w-4 text-green-500" />
+                          ) : (
+                            <XIcon className="h-4 w-4 text-red-500" />
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </Form>
+            </div>
+          </div>
         </div>
       </div>
-    </main>
+    </div>
+  );
+}
+
+function ConfirmTrackModal() {
+  const [isOpen, setIsOpen] = useState(true);
+
+  return (
+    <Dialog open={isOpen} onClose={() => setIsOpen(false)}>
+      <Dialog.Panel>
+        <Dialog.Title>Tracks found on Spotify</Dialog.Title>
+        <Dialog.Description>
+          This are the tracks that resulted from your search
+        </Dialog.Description>
+      </Dialog.Panel>
+    </Dialog>
   );
 }
