@@ -1,28 +1,66 @@
 import type { SpotifyTrack, YoutubeVideo } from "@prisma/client";
+import invariant from "tiny-invariant";
 import { prisma } from "~/db.server";
-import {
+import type {
   SpotifyArtistResponse,
   SpotifyImageResponse,
 } from "~/zod-schemas/SpotifyTrackSearch";
-import { createSpotifyTrackFromYoutubeChannel } from "./spotify.server";
+import {
+  spotifyArtistsResponse,
+  spotifyImagesResponse,
+} from "~/zod-schemas/SpotifyTrackSearch";
 
 export type { YoutubeVideo } from "@prisma/client";
+
+function getVideo(
+  video: (YoutubeVideo & { spotifyTracks: SpotifyTrack[] }) | null
+) {
+  if (!video) {
+    return null;
+  }
+
+  return {
+    ...video,
+    spotifyTracks: video.spotifyTracks.map((track) => {
+      const images = spotifyImagesResponse.safeParse(track.images);
+      const artists = spotifyArtistsResponse.safeParse(track.artists);
+
+      return {
+        ...track,
+        images: images.success ? images.data : [],
+        artists: artists.success ? artists.data : [],
+      };
+    }),
+  };
+}
 
 export async function getYoutubeVideoByVideoId({
   youtubeVideoId,
 }: Pick<YoutubeVideo, "youtubeVideoId">) {
-  return prisma.youtubeVideo.findFirst({ where: { youtubeVideoId } });
+  const video = await prisma.youtubeVideo.findFirst({
+    where: { youtubeVideoId },
+    include: { spotifyTracks: true },
+  });
+
+  return getVideo(video);
 }
 
 export async function getYoutubeVideoByTitle({
   title,
 }: Pick<YoutubeVideo, "title">) {
-  return prisma.youtubeVideo.findFirst({ where: { title } });
+  const video = await prisma.youtubeVideo.findFirst({
+    where: { title },
+    include: { spotifyTracks: true },
+  });
+
+  return getVideo(video);
 }
 
 type YoutubeVideoWithoutId = Omit<YoutubeVideo, "id">;
 
-type SpotifyTrackWithPartialId = Omit<SpotifyTrack, "id"> & { id?: string };
+type SpotifyTrackWithPartialId = Omit<SpotifyTrack, "id" | "youtubeVideoId"> & {
+  id?: string;
+};
 
 type SpotifyTrackInput = Omit<
   SpotifyTrackWithPartialId,
@@ -48,6 +86,7 @@ export async function createYoutubeVideo({
         title,
         channelId,
         youtubeVideoId,
+        availability: "PENDING",
       },
     });
 
@@ -62,6 +101,7 @@ export async function createYoutubeVideo({
       title,
       channelId,
       youtubeVideoId,
+      availability: "PENDING",
     },
   });
 }
@@ -120,17 +160,10 @@ export async function makeSpotifyTrackAvailableFromYoutubeVideo({
     data: {
       spotifyTracks: {
         deleteMany: {
-          availability: "PENDING",
-        },
-        update: {
-          where: {
-            trackId: spotifyTrackId,
-          },
-          data: {
-            availability: "AVAILABLE",
-          },
+          NOT: { trackId: spotifyTrackId },
         },
       },
+      availability: "AVAILABLE",
     },
   });
 }

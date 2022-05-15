@@ -1,12 +1,13 @@
-import { CheckIcon, MinusIcon, XIcon } from "@heroicons/react/outline";
-import { Form, useLoaderData } from "@remix-run/react";
+import {
+  CheckIcon,
+  ClockIcon,
+  MinusIcon,
+  XIcon,
+} from "@heroicons/react/outline";
+import { Form, Link, Outlet, useLoaderData } from "@remix-run/react";
 import { json } from "@remix-run/server-runtime";
 import { useLayoutEffect, useRef, useState } from "react";
-import {
-  createSpotifyTrackFromYoutubeChannel,
-  getSpotifyTrackBySearchQuery,
-} from "~/models/spotify.server";
-import { spotifyStrategy } from "~/services/auth.server";
+import { setSessionWithNewAccessToken, spotifyStrategy } from "~/services/auth.server";
 import { searchTrack } from "~/services/spotify.server";
 import {
   queryPlaylistItems,
@@ -15,13 +16,15 @@ import {
 
 import type { YoutubePlaylistItems } from "~/zod-schemas/YoutubePlaylistSchema";
 import type { SpotifyTrack } from "~/models/spotify.server";
-import { createYoutubeVideo, YoutubeVideo } from "~/models/youtubeVideo.server";
+import {
+  createYoutubeVideo,
+  getYoutubeVideoByTitle,
+} from "~/models/youtubeVideo.server";
 import type { ActionFunction, LoaderFunction } from "@remix-run/server-runtime";
 import {
   createYoutubeChannel,
   getYoutubeChannel,
 } from "~/models/youtubeChannel.server";
-import { Dialog } from "@headlessui/react";
 
 type SpotifyAvailability =
   | {
@@ -36,6 +39,7 @@ type SpotifyAvailability =
     }
   | {
       kind: "PENDING";
+      pendingSpotifyTracks: SpotifyTrack[];
     };
 
 type YoutubeResponseWithSpotifyAvailability = Omit<
@@ -89,7 +93,9 @@ export const loader: LoaderFunction = async ({ params, request }) => {
     ...videosResponse,
     items: await Promise.all(
       videosResponse.items.map(async (item) => {
-        const track = await getSpotifyTrackBySearchQuery(item.snippet.title);
+        const track = await getYoutubeVideoByTitle({
+          title: item.snippet.title,
+        });
 
         let spotifyAvailability: SpotifyAvailability;
         if (!track) {
@@ -98,6 +104,8 @@ export const loader: LoaderFunction = async ({ params, request }) => {
           spotifyAvailability =
             track.availability === "AVAILABLE"
               ? { kind: "AVAILABLE", trackId: track.id }
+              : track.availability === "PENDING"
+              ? { kind: "PENDING", pendingSpotifyTracks: track.spotifyTracks }
               : { kind: "UNAVAILABLE" };
         }
 
@@ -137,11 +145,11 @@ export const action: ActionFunction = async ({ request, params }) => {
   }
 
   const formData = await request.formData();
-  const dataEntries = Object.fromEntries(formData);
+  const {_action, ...dataEntries} = Object.fromEntries(formData);
 
-  // if (_action === "refreshToken") {
-  //   return setSessionWithNewAccessToken({ request, spotifySession });
-  // }
+  if (_action === "refreshToken") {
+    return setSessionWithNewAccessToken({ request, spotifySession });
+  }
 
   const promiseCallback = async ([videoId, searchQuery]: [
     string,
@@ -176,15 +184,7 @@ export const action: ActionFunction = async ({ request, params }) => {
         title: searchQuery.toString(),
         channelId: youtubeChannelId,
         youtubeVideoId: videoId,
-        spotifyTracks: [
-          {
-            youtubeVideoId: videoId,
-            searchQuery: searchQuery.toString(),
-            availability: "UNAVAILABLE",
-            trackId: null,
-            trackUrl: null,
-          },
-        ],
+        availability: "UNAVAILABLE",
       });
     }
 
@@ -192,11 +192,11 @@ export const action: ActionFunction = async ({ request, params }) => {
       title: searchQuery.toString(),
       channelId: youtubeChannelId,
       youtubeVideoId: videoId,
+      availability: "PENDING",
       spotifyTracks: res.data.map((item) => ({
+        name: item.name,
         trackId: item.id,
         searchQuery: searchQuery.toString(),
-        availability: "PENDING",
-        youtubeVideoId: videoId,
         trackUrl: item.external_urls.spotify,
         artists: item.artists,
         images: item.album.images,
@@ -246,6 +246,7 @@ export default function Channel() {
 
   return (
     <div className="px-4 sm:px-6 lg:px-8">
+      <Outlet />
       <Form method="post">
         <button
           className="inline-flex items-center rounded border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-30"
@@ -368,9 +369,12 @@ export default function Channel() {
                           {track.snippet.channelTitle}
                         </td>
                         <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                          {/* FIX:  implement this */}
                           {track.spotifyAvailability.kind === "UNCHECKED" ? (
                             <MinusIcon className="h-4 w-4" />
+                          ) : track.spotifyAvailability.kind === "PENDING" ? (
+                            <Link to={track.id}>
+                              <ClockIcon className="h-4 w-4 text-yellow-500" />
+                            </Link>
                           ) : track.spotifyAvailability.kind === "AVAILABLE" ? (
                             <CheckIcon className="h-4 w-4 text-green-500" />
                           ) : (
@@ -387,20 +391,5 @@ export default function Channel() {
         </div>
       </div>
     </div>
-  );
-}
-
-function ConfirmTrackModal() {
-  const [isOpen, setIsOpen] = useState(true);
-
-  return (
-    <Dialog open={isOpen} onClose={() => setIsOpen(false)}>
-      <Dialog.Panel>
-        <Dialog.Title>Tracks found on Spotify</Dialog.Title>
-        <Dialog.Description>
-          This are the tracks that resulted from your search
-        </Dialog.Description>
-      </Dialog.Panel>
-    </Dialog>
   );
 }

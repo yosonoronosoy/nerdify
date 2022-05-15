@@ -5,8 +5,10 @@ export const spotifyImageResponse = z.object({
   url: z.string(),
   width: z.number(),
 });
-
 export type SpotifyImageResponse = z.infer<typeof spotifyImageResponse>;
+
+export const spotifyImagesResponse = z.array(spotifyImageResponse);
+export type SpotifyImagesResponse = z.infer<typeof spotifyImagesResponse>;
 
 export const spotifyArtistResponse = z.object({
   external_urls: z.object({
@@ -18,8 +20,10 @@ export const spotifyArtistResponse = z.object({
   type: z.literal("artist"),
   uri: z.string(),
 });
-
 export type SpotifyArtistResponse = z.infer<typeof spotifyArtistResponse>;
+
+export const spotifyArtistsResponse = z.array(spotifyArtistResponse);
+export type SpotifyArtistsResponse = z.infer<typeof spotifyArtistsResponse>;
 
 export const spotifySearchItemResponse = z.object({
   album: z.object({
