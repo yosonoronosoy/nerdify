@@ -32,8 +32,6 @@ export async function queryYoutubeChannel(searchParams: SearchParams) {
     (res) => res.json()
   );
 
-  console.log(channelRawRes)
-
   const channelResponse = youtubeChannelListSchema.parse(channelRawRes);
   return channelResponse;
 }

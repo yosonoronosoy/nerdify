@@ -179,6 +179,7 @@ export function makeSpotifyTrackUnavailableFromYoutubeVideo({
       spotifyTracks: {
         deleteMany: {},
       },
+      availability: "UNAVAILABLE",
     },
   });
 }

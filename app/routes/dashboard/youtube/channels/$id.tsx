@@ -4,10 +4,19 @@ import {
   MinusIcon,
   XIcon,
 } from "@heroicons/react/outline";
-import { Form, Link, Outlet, useLoaderData } from "@remix-run/react";
+import {
+  Form,
+  Link,
+  Outlet,
+  useLoaderData,
+  useTransition,
+} from "@remix-run/react";
 import { json } from "@remix-run/server-runtime";
 import { useLayoutEffect, useRef, useState } from "react";
-import { setSessionWithNewAccessToken, spotifyStrategy } from "~/services/auth.server";
+import {
+  setSessionWithNewAccessToken,
+  spotifyStrategy,
+} from "~/services/auth.server";
 import { searchTrack } from "~/services/spotify.server";
 import {
   queryPlaylistItems,
@@ -25,6 +34,7 @@ import {
   createYoutubeChannel,
   getYoutubeChannel,
 } from "~/models/youtubeChannel.server";
+import { Spinner } from "~/icons/Spinner";
 
 type SpotifyAvailability =
   | {
@@ -63,6 +73,7 @@ const getNextPageToken = (searchParams: URLSearchParams) => ({
 });
 
 export const loader: LoaderFunction = async ({ params, request }) => {
+  console.log('===================== CALLED +==========================')
   if (!params.id) {
     return null;
   }
@@ -145,7 +156,7 @@ export const action: ActionFunction = async ({ request, params }) => {
   }
 
   const formData = await request.formData();
-  const {_action, ...dataEntries} = Object.fromEntries(formData);
+  const { _action, ...dataEntries } = Object.fromEntries(formData);
 
   if (_action === "refreshToken") {
     return setSessionWithNewAccessToken({ request, spotifySession });
@@ -221,6 +232,8 @@ export default function Channel() {
   const data = useLoaderData<LoaderData>();
   const tracks = data?.items ?? [];
 
+  const transition = useTransition();
+
   const checkbox = useRef<HTMLInputElement | null>(null);
   const [checked, setChecked] = useState(false);
   const [indeterminate, setIndeterminate] = useState(false);
@@ -252,6 +265,7 @@ export default function Channel() {
           className="inline-flex items-center rounded border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-30"
           name="_action"
           value="refreshToken"
+          disabled={transition.state === "submitting"}
         >
           Refresh Token
         </button>
@@ -265,6 +279,7 @@ export default function Channel() {
                   <button
                     className="inline-flex items-center rounded border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-30"
                     form="bulk-process-form"
+                    disabled={transition.state === "submitting"}
                   >
                     Check Spotify Availability
                   </button>
@@ -369,16 +384,31 @@ export default function Channel() {
                           {track.snippet.channelTitle}
                         </td>
                         <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                          {track.spotifyAvailability.kind === "UNCHECKED" ? (
-                            <MinusIcon className="h-4 w-4" />
-                          ) : track.spotifyAvailability.kind === "PENDING" ? (
-                            <Link to={track.id}>
-                              <ClockIcon className="h-4 w-4 text-yellow-500" />
-                            </Link>
-                          ) : track.spotifyAvailability.kind === "AVAILABLE" ? (
-                            <CheckIcon className="h-4 w-4 text-green-500" />
+                          {(transition.state === "submitting" ||
+                            transition.type === "loaderSubmissionRedirect") &&
+                          selectedTracks.includes(track) ? (
+                            <div>
+                              <div className="mx-auto">
+                                <Spinner />
+                              </div>
+                            </div>
                           ) : (
-                            <XIcon className="h-4 w-4 text-red-500" />
+                            <div>
+                              {track.spotifyAvailability.kind ===
+                              "UNCHECKED" ? (
+                                <MinusIcon className="mx-auto block h-4 w-4" />
+                              ) : track.spotifyAvailability.kind ===
+                                "PENDING" ? (
+                                <Link to={track.id}>
+                                  <ClockIcon className="mx-auto block h-4 w-4 text-yellow-500" />
+                                </Link>
+                              ) : track.spotifyAvailability.kind ===
+                                "AVAILABLE" ? (
+                                <CheckIcon className="mx-auto block h-4 w-4 text-green-500" />
+                              ) : (
+                                <XIcon className="mx-auto block h-4 w-4 text-red-500" />
+                              )}
+                            </div>
                           )}
                         </td>
                       </tr>
