@@ -4,11 +4,11 @@ import { prisma } from "~/db.server";
 import type {
   SpotifyArtistResponse,
   SpotifyImageResponse,
-} from "~/zod-schemas/SpotifyTrackSearch";
+} from "~/zod-schemas/spotify-track-search.server";
 import {
   spotifyArtistsResponse,
   spotifyImagesResponse,
-} from "~/zod-schemas/SpotifyTrackSearch";
+} from "~/zod-schemas/spotify-track-search.server";
 
 export type { YoutubeVideo } from "@prisma/client";
 

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { thumbnailSchema } from "./YoutubeThumbnailSchema";
+import { thumbnailSchema } from "./youtube-thumbnail-schema.server";
 
 export const youtubeChannelWithContentDetailsSchema = z.object({
   kind: z.literal("youtube#channel"),

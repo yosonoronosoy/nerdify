@@ -1,13 +1,19 @@
 import type { Status } from "@prisma/client";
-import { getYoutubeChannel } from "~/models/youtubeChannel.server";
-import { youtubeChannelListSchema } from "~/zod-schemas/YoutubeChannelsSchema";
-import { youtubePlaylistItemsSchema } from "~/zod-schemas/YoutubePlaylistSchema";
+import { getYoutubeChannel } from "~/models/youtube-channel.server";
+import {
+  createYoutubePlaylist,
+  getYoutubePlaylistByPlaylistId,
+} from "~/models/youtube-playlist.server";
+import { getYoutubeVideoByTitle } from "~/models/youtube-video.server";
+import { youtubeChannelListSchema } from "~/zod-schemas/youtube-channels-schema.server";
+import type { YoutubePlaylistItems } from "~/zod-schemas/youtube-playlist-schema.server";
+import { youtubePlaylistItemsSchema } from "~/zod-schemas/youtube-playlist-schema.server";
 import type {
   YoutubeChannelSearchResult,
   YoutubeSearchChannelResponse,
   YoutubeSearchResponse,
-} from "~/zod-schemas/YoutubeSearchSchema";
-import { youtubeSearchResponse } from "~/zod-schemas/YoutubeSearchSchema";
+} from "~/zod-schemas/youtube-search-schema.server";
+import { youtubeSearchResponse } from "~/zod-schemas/youtube-search-schema.server";
 
 const baseUrl = "https://www.googleapis.com/youtube/v3";
 const channelUrl = `${baseUrl}/channels`;
@@ -96,4 +102,75 @@ export async function searchChannel(
   );
 
   return { ...filteredResponse, items: finalItems };
+}
+
+type SpotifyAvailability =
+  | {
+      kind: "UNCHECKED";
+    }
+  | {
+      kind: "AVAILABLE";
+    }
+  | {
+      kind: "UNAVAILABLE";
+    }
+  | {
+      kind: "PENDING";
+    };
+
+type YoutubeResponseWithSpotifyAvailability = Omit<
+  YoutubePlaylistItems,
+  "items"
+> & {
+  items: (YoutubePlaylistItems["items"][number] & {
+    spotifyAvailability: SpotifyAvailability;
+  })[];
+};
+
+export type ExtendedResponse = YoutubeResponseWithSpotifyAvailability & {
+  nextPageToken: string | null;
+  totalItems: number;
+};
+
+export async function getPlaylistResponse({
+  playlistId,
+  nextPageToken,
+}: {
+  playlistId: string;
+  nextPageToken?: string;
+}) {
+  // TODO: add caching with query form items:${pageNumber}:${pageToken}
+
+  const videosResponse = await queryPlaylistItems(playlistId, nextPageToken);
+
+  const items = await Promise.all(
+    videosResponse.items.map(async (item) => {
+      const track = await getYoutubeVideoByTitle({
+        title: item.snippet.title,
+      });
+
+      let spotifyAvailability: SpotifyAvailability;
+      if (!track) {
+        spotifyAvailability = { kind: "UNCHECKED" };
+      } else {
+        spotifyAvailability = { kind: track.availability };
+      }
+
+      return {
+        ...item,
+        spotifyAvailability,
+      };
+    })
+  );
+
+  const extendedResponse: YoutubeResponseWithSpotifyAvailability = {
+    ...videosResponse,
+    items,
+  };
+
+  return {
+    ...extendedResponse,
+    nextPageToken: videosResponse.nextPageToken ?? "",
+    totalItems: videosResponse.pageInfo.totalResults,
+  };
 }

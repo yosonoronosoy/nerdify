@@ -6,12 +6,12 @@ import { redirect } from "@remix-run/server-runtime";
 import { json } from "@remix-run/server-runtime";
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import invariant from "tiny-invariant";
-import { Search } from "~/components/SearchInput";
+import { Search } from "~/components/search-input";
 import {
   getYoutubeVideoByVideoId,
   makeSpotifyTrackAvailableFromYoutubeVideo,
   makeSpotifyTrackUnavailableFromYoutubeVideo,
-} from "~/models/youtubeVideo.server";
+} from "~/models/youtube-video.server";
 
 type LoaderData = Awaited<ReturnType<typeof getYoutubeVideoByVideoId>>;
 
@@ -39,7 +39,7 @@ export const action: ActionFunction = async ({ request, params }) => {
       youtubeVideoId,
     });
 
-    return redirect(`/dashboard/youtube/channels/${id}`, {status: 301});
+    return redirect(`/dashboard/youtube/channels/${id}`, { status: 301 });
   }
 
   if (_action === "confirm") {
@@ -136,7 +136,7 @@ export default function ConfirmTrackModal() {
           >
             <div className="relative inline-block transform overflow-hidden rounded-lg bg-white px-4 pt-5 pb-4 text-left align-bottom shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-4xl sm:p-6 sm:align-middle">
               <div className="relative">
-                <Search className="absolute right-0 top-12 w-64">
+                <Search className="absolute right-0 top-24 w-64">
                   <Search.Input
                     placeholder="Filter tracks"
                     onChange={(e) => setFilterQuery(e.target.value)}
@@ -156,9 +156,19 @@ export default function ConfirmTrackModal() {
                   >
                     Confirm Track
                   </Dialog.Title>
+                  <Dialog.Title
+                    as="h4"
+                    className="my-4 text-base font-medium leading-6 text-gray-500"
+                  >
+                    {data?.title}
+                  </Dialog.Title>
                   <div className="mt-2">
                     {filteredTracks.length > 0 ? (
-                      <Form reloadDocument method="post" id="confirm-track-form">
+                      <Form
+                        reloadDocument
+                        method="post"
+                        id="confirm-track-form"
+                      >
                         <input
                           hidden
                           name="_action"

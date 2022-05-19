@@ -1,6 +1,5 @@
 import { z } from "zod";
-import { thumbnailSchema } from "./YoutubeThumbnailSchema";
-
+import { thumbnailSchema } from "./youtube-thumbnail-schema.server";
 
 const videoIdSchema = z.object({
   kind: z.literal("youtube#video"),

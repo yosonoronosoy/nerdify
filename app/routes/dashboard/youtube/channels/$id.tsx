@@ -18,53 +18,23 @@ import {
   spotifyStrategy,
 } from "~/services/auth.server";
 import { searchTrack } from "~/services/spotify.server";
+import type { ExtendedResponse } from "~/services/youtube.server";
 import {
-  queryPlaylistItems,
+  getPlaylistResponse,
   queryYoutubeChannel,
 } from "~/services/youtube.server";
 
-import type { YoutubePlaylistItems } from "~/zod-schemas/YoutubePlaylistSchema";
-import type { SpotifyTrack } from "~/models/spotify.server";
-import {
-  createYoutubeVideo,
-  getYoutubeVideoByTitle,
-} from "~/models/youtubeVideo.server";
+import { createYoutubeVideo } from "~/models/youtube-video.server";
 import type { ActionFunction, LoaderFunction } from "@remix-run/server-runtime";
 import {
   createYoutubeChannel,
   getYoutubeChannel,
-} from "~/models/youtubeChannel.server";
+} from "~/models/youtube-channel.server";
 import { Spinner } from "~/icons/Spinner";
-
-type SpotifyAvailability =
-  | {
-      kind: "UNCHECKED";
-    }
-  | {
-      kind: "AVAILABLE";
-      trackId: string;
-    }
-  | {
-      kind: "UNAVAILABLE";
-    }
-  | {
-      kind: "PENDING";
-      pendingSpotifyTracks: SpotifyTrack[];
-    };
-
-type YoutubeResponseWithSpotifyAvailability = Omit<
-  YoutubePlaylistItems,
-  "items"
-> & {
-  items: (YoutubePlaylistItems["items"][number] & {
-    spotifyAvailability: SpotifyAvailability;
-  })[];
-};
-
-type ExtendedResponse = YoutubeResponseWithSpotifyAvailability & {
-  nextPageToken: string | null;
-  totalItems: number;
-};
+import {
+  createYoutubePlaylist,
+  getYoutubePlaylistByPlaylistId,
+} from "~/models/youtube-playlist.server";
 
 type LoaderData = ExtendedResponse | null;
 
@@ -73,7 +43,6 @@ const getNextPageToken = (searchParams: URLSearchParams) => ({
 });
 
 export const loader: LoaderFunction = async ({ params, request }) => {
-  console.log('===================== CALLED +==========================')
   if (!params.id) {
     return null;
   }
@@ -99,47 +68,26 @@ export const loader: LoaderFunction = async ({ params, request }) => {
   const playlistId =
     channelResponse.items[0].contentDetails.relatedPlaylists.uploads;
 
-  const videosResponse = await queryPlaylistItems(playlistId, nextPageToken);
-  const extendedResponse: YoutubeResponseWithSpotifyAvailability = {
-    ...videosResponse,
-    items: await Promise.all(
-      videosResponse.items.map(async (item) => {
-        const track = await getYoutubeVideoByTitle({
-          title: item.snippet.title,
-        });
+  const extendedResponse = await getPlaylistResponse({
+    playlistId,
+    nextPageToken,
+  });
 
-        let spotifyAvailability: SpotifyAvailability;
-        if (!track) {
-          spotifyAvailability = { kind: "UNCHECKED" };
-        } else {
-          spotifyAvailability =
-            track.availability === "AVAILABLE"
-              ? { kind: "AVAILABLE", trackId: track.id }
-              : track.availability === "PENDING"
-              ? { kind: "PENDING", pendingSpotifyTracks: track.spotifyTracks }
-              : { kind: "UNAVAILABLE" };
-        }
+  let playlistFromDB = await getYoutubePlaylistByPlaylistId(playlistId);
 
-        return {
-          ...item,
-          spotifyAvailability,
-        };
-      })
-    ),
-  };
+  if (!playlistFromDB) {
+    playlistFromDB = await createYoutubePlaylist({
+      playlistId,
+      title: `${channelResponse.items[0].snippet.title} - Uploads`,
+      trackCount: extendedResponse.pageInfo.totalResults,
+    });
+  }
 
-  return json<ExtendedResponse>(
-    {
-      ...extendedResponse,
-      nextPageToken: videosResponse.nextPageToken ?? "",
-      totalItems: videosResponse.pageInfo.totalResults,
+  return json<ExtendedResponse>(extendedResponse, {
+    headers: {
+      "Cache-Control": "public, max-age=120",
     },
-    {
-      headers: {
-        "Cache-Control": "public, max-age=120",
-      },
-    }
-  );
+  });
 };
 
 export const action: ActionFunction = async ({ request, params }) => {

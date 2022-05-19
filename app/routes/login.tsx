@@ -4,13 +4,7 @@ import type {
   MetaFunction,
 } from "@remix-run/node";
 import { json, redirect } from "@remix-run/node";
-import {
-  Form,
-  Link,
-  useActionData,
-  useLoaderData,
-  useSearchParams,
-} from "@remix-run/react";
+import { Form, Link, useLoaderData } from "@remix-run/react";
 import type { Session } from "remix-auth-spotify";
 
 import { spotifyStrategy } from "~/services/auth.server";

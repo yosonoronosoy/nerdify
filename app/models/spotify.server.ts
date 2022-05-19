@@ -1,9 +1,8 @@
-import type { Availability, SpotifyTrack } from "@prisma/client";
 import { prisma } from "~/db.server";
-import {
+import type {
   SpotifyArtistResponse,
   SpotifyImageResponse,
-} from "~/zod-schemas/SpotifyTrackSearch";
+} from "~/zod-schemas/spotify-track-search.server";
 
 export type { SpotifyTrack } from "@prisma/client";
 
@@ -32,16 +31,16 @@ export async function createSpotifyTrackFromYoutubeChannel({
   searchQuery,
   youtubeVideoId,
   youtubeChannelId,
-  availability = "UNAVAILABLE",
   images,
   trackUrl,
   artists,
+  name,
 }: {
   trackId?: string;
   searchQuery: string;
+  name: string;
   youtubeVideoId: string;
   youtubeChannelId: string;
-  availability: Availability;
   images?: SpotifyImageResponse[];
   trackUrl?: string;
   artists?: SpotifyArtistResponse[];
@@ -50,8 +49,8 @@ export async function createSpotifyTrackFromYoutubeChannel({
     data: {
       trackId,
       searchQuery,
-      availability,
       youtubeVideoId,
+      name,
       youtubeChannel: {
         connect: [{ channelId: youtubeChannelId }],
       },

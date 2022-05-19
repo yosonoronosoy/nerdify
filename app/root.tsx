@@ -13,9 +13,9 @@ import {
   Form,
   useLocation,
 } from "@remix-run/react";
-import { YoutubeIcon } from "~/icons/Youtube";
-import { RadioIcon } from "~/icons/RadioIcon";
-import { ClipboardIcon } from "~/icons/ClipboardIcon";
+import { YoutubeIcon } from "~/icons/youtube";
+import { RadioIcon } from "~/icons/radio-icon";
+import { ClipboardIcon } from "~/icons/clipboard-icon";
 import { Fragment, useState } from "react";
 import { Dialog, Transition } from "@headlessui/react";
 import { MenuIcon, XIcon } from "@heroicons/react/outline";
@@ -25,7 +25,7 @@ import {
 } from "~/services/auth.server";
 
 import tailwindStylesheetUrl from "./styles/tailwind.css";
-import DiscogsIcon from "./icons/DiscogsIcon";
+import DiscogsIcon from "./icons/discogs-icon";
 
 export const links: LinksFunction = () => {
   return [{ rel: "stylesheet", href: tailwindStylesheetUrl }];

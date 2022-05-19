@@ -1,4 +1,4 @@
-import { spotifySearchTrackResponse } from "~/zod-schemas/SpotifyTrackSearch";
+import { spotifySearchTrackResponse } from "~/zod-schemas/spotify-track-search.server";
 import { spotifyStrategy } from "./auth.server";
 
 const baseUrl = `https://api.spotify.com/v1`;

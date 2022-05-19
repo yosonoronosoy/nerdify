@@ -1,3 +1,4 @@
+/*
 import {
   CheckIcon,
   MinusIcon,
@@ -34,15 +35,15 @@ import {
   queryYoutubeChannel,
 } from "~/services/youtube.server";
 
-import type { YoutubePlaylistItems } from "~/zod-schemas/YoutubePlaylistSchema";
+import type { YoutubePlaylistItems } from "~/zod-schemas/youtube-playlist-schema.server";
 import type { SpotifyTrack } from "~/models/spotify.server";
 import type { ActionFunction, LoaderFunction } from "@remix-run/server-runtime";
 import { useVirtual } from "react-virtual";
-import { BigSpinner } from "~/icons/BigSpinner";
+import { BigSpinner } from "~/icons/big-spinner";
 import {
   createYoutubeChannel,
   getYoutubeChannel,
-} from "~/models/youtubeChannel.server";
+} from "~/models/youtube-channel.server";
 
 type SpotifyAvailability =
   | {
@@ -540,4 +541,9 @@ export default function Channel() {
       </div>
     </main>
   );
+}
+*/
+
+export default function InfiniteScroll() {
+  return null;
 }

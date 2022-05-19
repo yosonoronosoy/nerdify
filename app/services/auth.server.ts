@@ -1,13 +1,11 @@
 import type { Session } from "@remix-run/server-runtime";
-import { redirect } from "@remix-run/server-runtime";
 import { Authenticator } from "remix-auth";
 import { GoogleStrategy } from "remix-auth-google";
 import type { Session as SpotifySession } from "remix-auth-spotify";
 import { SpotifyStrategy } from "remix-auth-spotify";
 import invariant from "tiny-invariant";
-import { spotifyRefreshTokenResponse } from "~/zod-schemas/SpotifyRefreshTokenResponse";
+import { spotifyRefreshTokenResponse } from "~/zod-schemas/spotify-refresh-token-response.server";
 import {
-  getSession,
   sessionStorage,
   setNewCookie,
   setSessionByKey,
