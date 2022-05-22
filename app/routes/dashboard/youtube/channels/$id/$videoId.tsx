@@ -164,11 +164,7 @@ export default function ConfirmTrackModal() {
                   </Dialog.Title>
                   <div className="mt-2">
                     {filteredTracks.length > 0 ? (
-                      <Form
-                        reloadDocument
-                        method="post"
-                        id="confirm-track-form"
-                      >
+                      <form method="post" id="confirm-track-form">
                         <input
                           hidden
                           name="_action"
@@ -287,7 +283,7 @@ export default function ConfirmTrackModal() {
                             ))}
                           </div>
                         </RadioGroup>
-                      </Form>
+                      </form>
                     ) : null}
                   </div>
                 </div>

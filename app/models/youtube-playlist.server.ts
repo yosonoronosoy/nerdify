@@ -26,6 +26,44 @@ export function createYoutubePlaylist(
   });
 }
 
+export async function connectSingleYoutubePageToPlaylist({
+  playlistId,
+  pageId,
+}: {
+  playlistId: string;
+  pageId: string;
+}) {
+  return prisma.youtubePlaylist.update({
+    where: { playlistId },
+    data: {
+      pages: {
+        connect: { id: pageId },
+      },
+    },
+  });
+}
+
+export async function connectYoutubePagesToPlaylist({
+  playlistId,
+  pageIds,
+}: {
+  playlistId: string;
+  pageIds: string[];
+}) {
+  try {
+    await Promise.all(
+      pageIds.map((pageId) => {
+        return connectSingleYoutubePageToPlaylist({ pageId, playlistId });
+      })
+    );
+  } catch (e) {
+    console.error(e);
+    return null;
+  }
+
+  return getYoutubePlaylistByPlaylistId(playlistId);
+}
+
 export function updateYoutubePlaylist({
   id,
   playlist,

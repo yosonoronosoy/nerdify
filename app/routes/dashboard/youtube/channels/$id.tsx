@@ -9,6 +9,7 @@ import {
   Link,
   Outlet,
   useLoaderData,
+  useSearchParams,
   useTransition,
 } from "@remix-run/react";
 import { json } from "@remix-run/server-runtime";
@@ -30,17 +31,21 @@ import {
   createYoutubeChannel,
   getYoutubeChannel,
 } from "~/models/youtube-channel.server";
-import { Spinner } from "~/icons/Spinner";
+import { Spinner } from "~/icons/spinner";
 import {
   createYoutubePlaylist,
   getYoutubePlaylistByPlaylistId,
 } from "~/models/youtube-playlist.server";
+import Pagination from "~/components/pagination";
 
 type LoaderData = ExtendedResponse | null;
 
 const getNextPageToken = (searchParams: URLSearchParams) => ({
   nextPageToken: searchParams.get("nextPageToken") ?? "",
 });
+
+const getPageNumber = (searchParams: URLSearchParams) =>
+  Number(searchParams.get("page") ?? "1");
 
 export const loader: LoaderFunction = async ({ params, request }) => {
   if (!params.id) {
@@ -179,8 +184,10 @@ const useSSRLayoutEffect = isServerRender ? () => {} : useLayoutEffect;
 export default function Channel() {
   const data = useLoaderData<LoaderData>();
   const tracks = data?.items ?? [];
+  const [searchParams] = useSearchParams();
 
   const transition = useTransition();
+  const currentPage = getPageNumber(searchParams);
 
   const checkbox = useRef<HTMLInputElement | null>(null);
   const [checked, setChecked] = useState(false);
@@ -366,6 +373,13 @@ export default function Channel() {
               </Form>
             </div>
           </div>
+        </div>
+        <div className="mt-8">
+          <Pagination
+            pageSize={50}
+            totalCount={data?.totalItems || 0}
+            currentPage={currentPage}
+          />
         </div>
       </div>
     </div>

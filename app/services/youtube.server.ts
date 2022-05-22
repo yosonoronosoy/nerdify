@@ -1,9 +1,15 @@
 import type { Status } from "@prisma/client";
+import invariant from "tiny-invariant";
+import {
+  getCachedYoutubePlaylistPage,
+  setCacheYoutubePlaylistPage,
+} from "~/models/redis.server";
 import { getYoutubeChannel } from "~/models/youtube-channel.server";
 import {
-  createYoutubePlaylist,
-  getYoutubePlaylistByPlaylistId,
-} from "~/models/youtube-playlist.server";
+  upsertYoutubePlaylistPage,
+  getNearestYoutubePlaylistPage,
+  getYoutubePlaylistPageRange,
+} from "~/models/youtube-playlist-page.server";
 import { getYoutubeVideoByTitle } from "~/models/youtube-video.server";
 import { youtubeChannelListSchema } from "~/zod-schemas/youtube-channels-schema.server";
 import type { YoutubePlaylistItems } from "~/zod-schemas/youtube-playlist-schema.server";
@@ -42,22 +48,155 @@ export async function queryYoutubeChannel(searchParams: SearchParams) {
   return channelResponse;
 }
 
-export async function queryPlaylistItems(
-  playlistId: string,
-  pageToken?: string
-) {
-  const playlistQuerystring = getQuerystring({
+async function fetchYoutubePlaylistPage({
+  playlistId,
+  pageToken,
+}: {
+  playlistId: string;
+  pageToken?: string;
+}): Promise<YoutubePlaylistItems> {
+  const querystring = getQuerystring({
     playlistId,
     maxResults: "50",
     pageToken: pageToken ?? "",
   });
 
-  const videosRawRes = await fetch(
-    `${playlistUrl}?${playlistQuerystring}`
-  ).then((res) => res.json());
+  const videosRawRes = await fetch(`${playlistUrl}?${querystring}`).then(
+    (res) => res.json()
+  );
 
-  const videosResponse = youtubePlaylistItemsSchema.parse(videosRawRes);
+  return youtubePlaylistItemsSchema.parse(videosRawRes);
+}
+
+export async function queryPlaylistItems({
+  playlistId,
+  pageToken,
+  pageNumber = 1,
+}: {
+  playlistId: string;
+  pageToken?: string;
+  pageNumber?: number;
+}) {
+  const playlistFromRedisCache = await getCachedYoutubePlaylistPage({
+    playlistId,
+    page: pageNumber,
+  });
+
+  if (playlistFromRedisCache) {
+    return playlistFromRedisCache;
+  }
+
+  const videosResponse = await fetchYoutubePlaylistPage({
+    playlistId,
+    pageToken,
+  });
+
+  await setCacheYoutubePlaylistPage({
+    playlistId,
+    page: pageNumber,
+    data: videosResponse,
+  });
+
+  //NOTE: this is needed because pages only store prev and next page tokens
+  if (videosResponse.nextPageToken) {
+    const secondPage = await fetchYoutubePlaylistPage({
+      playlistId,
+      pageToken: videosResponse.nextPageToken,
+    });
+
+    //NOTE: take advantage to cache page 2
+    await setCacheYoutubePlaylistPage({
+      playlistId,
+      page: pageNumber + 1,
+      data: secondPage,
+    });
+
+    invariant(
+      secondPage.prevPageToken,
+      "Previous Token from secondPage must be available for current page"
+    );
+
+    //NOTE: store page 1 on DB
+    await upsertYoutubePlaylistPage({
+      pageToken: secondPage.prevPageToken,
+      pageNumber: pageNumber,
+      youtubePlaylistId: playlistId,
+    });
+
+    //NOTE: store page 2 on DB
+    await upsertYoutubePlaylistPage({
+      pageToken: videosResponse.nextPageToken,
+      pageNumber: pageNumber + 1,
+      youtubePlaylistId: playlistId,
+    });
+  }
+
   return videosResponse;
+}
+
+function* range(start: number, end: number) {
+  for (let i = start; i < end; i++) {
+    yield i;
+  }
+}
+
+export async function queryPlaylistItemFromPageRange({
+  playlistId,
+  from,
+  to,
+}: {
+  playlistId: string;
+  from?: number;
+  to: number;
+}) {
+  if (from && from >= to) {
+    throw new Error("<<from>> must be less than <<to>>");
+  }
+
+  const fromPage = from ?? 1;
+
+  const pagesRangeFromDB = await getYoutubePlaylistPageRange({
+    playlistId,
+    from: fromPage,
+    to,
+  });
+
+  if (pagesRangeFromDB.length === to - fromPage + 1) {
+    const lastPage = pagesRangeFromDB.at(-1);
+
+    return queryPlaylistItems({
+      playlistId,
+      pageToken: lastPage?.pageToken,
+      pageNumber: lastPage?.pageNumber,
+    });
+  }
+
+  const nearestPageToLast = await getNearestYoutubePlaylistPage({
+    pageNumber: to,
+    playlistId,
+  });
+
+  const nearestPageNumberToLast = nearestPageToLast?.pageNumber ?? fromPage;
+
+  let pageToken = nearestPageToLast?.pageToken;
+
+  let playlistItemsPage: YoutubePlaylistItems = await queryPlaylistItems({
+    playlistId,
+    pageNumber: nearestPageNumberToLast,
+    pageToken,
+  });
+
+  for (const page of range(nearestPageNumberToLast + 1, to + 1)) {
+    playlistItemsPage = await queryPlaylistItems({
+      playlistId,
+      pageNumber: page,
+      pageToken,
+    });
+
+    pageToken = playlistItemsPage.nextPageToken;
+  }
+
+  return playlistItemsPage;
 }
 
 export type SearchChannelResponse = Omit<
@@ -141,7 +280,10 @@ export async function getPlaylistResponse({
 }) {
   // TODO: add caching with query form items:${pageNumber}:${pageToken}
 
-  const videosResponse = await queryPlaylistItems(playlistId, nextPageToken);
+  const videosResponse = await queryPlaylistItems({
+    playlistId,
+    pageToken: nextPageToken,
+  });
 
   const items = await Promise.all(
     videosResponse.items.map(async (item) => {

@@ -39,11 +39,20 @@ model Password {
 }
 
 model YoutubePlaylist {
-  id         String @id @default(cuid())
+  id         String                @id @default(cuid())
   title      String
-  playlistId String @unique
+  playlistId String                @unique
   trackCount Int
   status     Status
+  pages      YoutubePlaylistPage[]
+}
+
+model YoutubePlaylistPage {
+  id                String           @id @default(cuid())
+  pageToken         String           @unique
+  pageNumber        Int
+  youtubePlaylist   YoutubePlaylist? @relation(fields: [youtubePlaylistId], references: [id])
+  youtubePlaylistId String?
 }
 
 model YoutubeChannel {
