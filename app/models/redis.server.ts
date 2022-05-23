@@ -1,11 +1,9 @@
 import { redis } from "~/services/redis.server";
-import {
-  YoutubePlaylistItems,
-  youtubePlaylistItemsSchema,
-} from "~/zod-schemas/youtube-playlist-schema.server";
+import type { YoutubePlaylistItems } from "~/zod-schemas/youtube-playlist-schema.server";
+import { youtubePlaylistItemsSchema } from "~/zod-schemas/youtube-playlist-schema.server";
 
 type YoutubePlaylistId = string;
-type YoutubePage = number;
+type YoutubePage = number | "*";
 type YoutubePageCacheKey = `youtube-page:${YoutubePlaylistId}:${YoutubePage}`;
 
 const REDIS_KEYS = {
@@ -43,4 +41,43 @@ export async function setCacheYoutubePlaylistPage({
 }) {
   const key = REDIS_KEYS.getYoutubePageKey(playlistId, page);
   return redis.set(key, JSON.stringify(data), "EX", 60 * 60 * 24);
+}
+
+export async function deleteCacheYoutubePlaylistPage({
+  playlistId,
+  page,
+}: {
+  playlistId: string;
+  page: number;
+}) {
+  const key = REDIS_KEYS.getYoutubePageKey(playlistId, page);
+  return redis.del(key);
+}
+
+export async function deleteManyCacheYoutubePlaylistPage({
+  playlistId,
+}: {
+  playlistId: string;
+}) {
+  const key = REDIS_KEYS.getYoutubePageKey(playlistId, "*");
+  const keys = await redis.keys(key);
+  return redis.del(keys);
+}
+
+export async function addOneToManyCacheYoutubePlaylistPages({
+  playlistId,
+}: {
+  playlistId: string;
+}) {
+  const key = REDIS_KEYS.getYoutubePageKey(playlistId, "*");
+  const allKeys = await redis.keys(key);
+  return Promise.all(
+    allKeys.map((key) => {
+      const getPage = Number(key.split(":").at(-1));
+      return redis.rename(
+        key,
+        REDIS_KEYS.getYoutubePageKey(playlistId, getPage + 1)
+      );
+    })
+  );
 }

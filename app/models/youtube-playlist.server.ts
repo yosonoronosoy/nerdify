@@ -15,7 +15,7 @@ export function getYoutubePlaylistByTitle(title: `${string} - Uploads`) {
 
 export function createYoutubePlaylist(
   playlist: Omit<YoutubePlaylist, "id" | "status" | "title"> & {
-    title: `${string} - Uploads`;
+    title: string;
   }
 ) {
   return prisma.youtubePlaylist.create({
@@ -27,14 +27,14 @@ export function createYoutubePlaylist(
 }
 
 export async function connectSingleYoutubePageToPlaylist({
-  playlistId,
+  playlistIdFromDB,
   pageId,
 }: {
-  playlistId: string;
+  playlistIdFromDB: string;
   pageId: string;
 }) {
   return prisma.youtubePlaylist.update({
-    where: { playlistId },
+    where: { id: playlistIdFromDB },
     data: {
       pages: {
         connect: { id: pageId },
@@ -44,16 +44,16 @@ export async function connectSingleYoutubePageToPlaylist({
 }
 
 export async function connectYoutubePagesToPlaylist({
-  playlistId,
+  playlistIdFromDB,
   pageIds,
 }: {
-  playlistId: string;
+  playlistIdFromDB: string;
   pageIds: string[];
 }) {
   try {
     await Promise.all(
       pageIds.map((pageId) => {
-        return connectSingleYoutubePageToPlaylist({ pageId, playlistId });
+        return connectSingleYoutubePageToPlaylist({ pageId, playlistIdFromDB });
       })
     );
   } catch (e) {
@@ -61,7 +61,7 @@ export async function connectYoutubePagesToPlaylist({
     return null;
   }
 
-  return getYoutubePlaylistByPlaylistId(playlistId);
+  return getYoutubePlaylistByPlaylistId(playlistIdFromDB);
 }
 
 export function updateYoutubePlaylist({

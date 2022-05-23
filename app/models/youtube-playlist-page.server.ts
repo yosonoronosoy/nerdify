@@ -11,6 +11,18 @@ export async function getYoutubePlaylistPagesByPlaylistId(
   });
 }
 
+export async function getYoutubePlaylistPageByPageToken({
+  pageToken,
+}: {
+  pageToken: YoutubePlaylistPage["pageToken"];
+}) {
+  return prisma.youtubePlaylistPage.findFirst({
+    where: {
+      pageToken,
+    },
+  });
+}
+
 export async function getYoutubePlaylistPage({
   pageNumber,
 }: {
@@ -74,15 +86,11 @@ export async function getNearestYoutubePlaylistPage({
   });
 }
 
-export async function upsertYoutubePlaylistPage(
+export async function createYoutubePlaylistPage(
   playlistPage: Omit<YoutubePlaylistPage, "id">
 ) {
-  return prisma.youtubePlaylistPage.upsert({
-    where: {
-      pageToken: playlistPage.pageToken,
-    },
-    update: {},
-    create: playlistPage,
+  return prisma.youtubePlaylistPage.create({
+    data: playlistPage,
   });
 }
 
@@ -93,5 +101,20 @@ export async function createManyYoutubePlaylistPages({
 }) {
   return prisma.youtubePlaylistPage.createMany({
     data: pages,
+  });
+}
+
+export async function addOneToAllPages(
+  playlistId: YoutubePlaylistPage["youtubePlaylistId"]
+) {
+  return prisma.youtubePlaylistPage.updateMany({
+    where: {
+      youtubePlaylistId: playlistId,
+    },
+    data: {
+      pageNumber: {
+        increment: 1,
+      },
+    },
   });
 }

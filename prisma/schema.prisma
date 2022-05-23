@@ -41,7 +41,7 @@ model Password {
 model YoutubePlaylist {
   id         String                @id @default(cuid())
   title      String
-  playlistId String                @unique
+  playlistId String
   trackCount Int
   status     Status
   pages      YoutubePlaylistPage[]

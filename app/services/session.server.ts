@@ -100,3 +100,70 @@ export async function createUserSession({
     },
   });
 }
+
+const FIRST_VISITED_SESSION_KEY = "first-visited";
+type YoutubeService = "channel" | "playlist" | "video";
+type ServiceKey = `youtube-${YoutubeService}` | "spotify" | "nts" | "discogs";
+
+function getVisitedSessionKey({
+  serviceKey,
+  id,
+}: {
+  serviceKey: ServiceKey;
+  id: string;
+}) {
+  return `${FIRST_VISITED_SESSION_KEY}:${serviceKey}:${id}`;
+}
+
+export async function getAlreadyVisitedSession({
+  request,
+  serviceKey,
+  id,
+}: {
+  request: Request;
+  serviceKey: ServiceKey;
+  id: string;
+}) {
+  const session = await getSession(request);
+  const key = getVisitedSessionKey({ serviceKey, id });
+  return session.get(key);
+}
+
+export async function setAlreadyVisitedSession({
+  request,
+  serviceKey,
+  id,
+}: {
+  request: Request;
+  serviceKey: ServiceKey;
+  id: string;
+}) {
+  const session = await getSession(request);
+  session.set(getVisitedSessionKey({ serviceKey, id }), true);
+
+  return {
+    headers: {
+      "Set-Cookie": await sessionStorage.commitSession(session),
+    },
+  };
+}
+
+export async function unsetAlreadyVisitedSession({
+  request,
+  serviceKey,
+  id,
+}: {
+  request: Request;
+  serviceKey: ServiceKey;
+  id: string;
+}) {
+  const session = await getSession(request);
+  const key = getVisitedSessionKey({ serviceKey, id });
+  session.unset(key);
+
+  return {
+    headers: {
+      "Set-Cookie": await sessionStorage.commitSession(session),
+    },
+  };
+}

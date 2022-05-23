@@ -20,6 +20,7 @@ import {
 } from "~/services/auth.server";
 import { searchTrack } from "~/services/spotify.server";
 import type { ExtendedResponse } from "~/services/youtube.server";
+import { queryPlaylistItemFromPageRange } from "~/services/youtube.server";
 import {
   getPlaylistResponse,
   queryYoutubeChannel,
@@ -32,17 +33,18 @@ import {
   getYoutubeChannel,
 } from "~/models/youtube-channel.server";
 import { Spinner } from "~/icons/spinner";
+import Pagination from "~/components/pagination";
+import {
+  getAlreadyVisitedSession,
+  setAlreadyVisitedSession,
+} from "~/services/session.server";
 import {
   createYoutubePlaylist,
   getYoutubePlaylistByPlaylistId,
+  updateYoutubePlaylistCount,
 } from "~/models/youtube-playlist.server";
-import Pagination from "~/components/pagination";
 
 type LoaderData = ExtendedResponse | null;
-
-const getNextPageToken = (searchParams: URLSearchParams) => ({
-  nextPageToken: searchParams.get("nextPageToken") ?? "",
-});
 
 const getPageNumber = (searchParams: URLSearchParams) =>
   Number(searchParams.get("page") ?? "1");
@@ -52,9 +54,7 @@ export const loader: LoaderFunction = async ({ params, request }) => {
     return null;
   }
 
-  const { nextPageToken } = getNextPageToken(
-    new URLSearchParams(new URL(request.url).searchParams)
-  );
+  const pageNumber = getPageNumber(new URL(request.url).searchParams);
 
   const channelResponse = await queryYoutubeChannel({
     id: params.id,
@@ -73,26 +73,65 @@ export const loader: LoaderFunction = async ({ params, request }) => {
   const playlistId =
     channelResponse.items[0].contentDetails.relatedPlaylists.uploads;
 
-  const extendedResponse = await getPlaylistResponse({
+  const playlistFromDB = await getYoutubePlaylistByPlaylistId(playlistId);
+
+  const youtubePlayist = await createYoutubePlaylist({
+    title: `${channelResponse.items[0].snippet.title} - Uploads`,
     playlistId,
-    nextPageToken,
+    trackCount: 0,
   });
 
-  let playlistFromDB = await getYoutubePlaylistByPlaylistId(playlistId);
+  const alreadyVisited = await getAlreadyVisitedSession({
+    id: params.id,
+    request,
+    serviceKey: "youtube-channel",
+  });
 
-  if (!playlistFromDB) {
-    playlistFromDB = await createYoutubePlaylist({
-      playlistId,
-      title: `${channelResponse.items[0].snippet.title} - Uploads`,
-      trackCount: extendedResponse.pageInfo.totalResults,
-    });
-  }
-
-  return json<ExtendedResponse>(extendedResponse, {
+  let headers: {
+    headers: {
+      [key: string]: string;
+    };
+  } = {
     headers: {
       "Cache-Control": "public, max-age=120",
     },
+  };
+
+  if (!alreadyVisited) {
+    const alreadyVisitedHeaders = await setAlreadyVisitedSession({
+      id: params.id,
+      request,
+      serviceKey: "youtube-channel",
+    });
+
+    headers = {
+      headers: {
+        ...alreadyVisitedHeaders.headers,
+        "Cache-Control": "public, max-age=120",
+      },
+    };
+
+    const res = await queryPlaylistItemFromPageRange({
+      playlistId,
+      from: 1,
+      to: 5,
+      youtubePlaylistIdFromDB: youtubePlayist.id,
+    });
+
+    await updateYoutubePlaylistCount({
+      id: youtubePlayist.id,
+      trackCount: res.pageInfo.totalResults,
+    });
+  }
+
+  const extendedResponse = await getPlaylistResponse({
+    playlistId,
+    trackCountFromDB: playlistFromDB?.trackCount,
+    pageNumber,
+    youtubePlaylistIdFromDB: youtubePlayist.id,
   });
+
+  return json<ExtendedResponse>(extendedResponse, headers);
 };
 
 export const action: ActionFunction = async ({ request, params }) => {
