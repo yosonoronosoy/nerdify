@@ -73,13 +73,15 @@ export const loader: LoaderFunction = async ({ params, request }) => {
   const playlistId =
     channelResponse.items[0].contentDetails.relatedPlaylists.uploads;
 
-  const playlistFromDB = await getYoutubePlaylistByPlaylistId(playlistId);
+  let playlistFromDB = await getYoutubePlaylistByPlaylistId(playlistId);
 
-  const youtubePlayist = await createYoutubePlaylist({
-    title: `${channelResponse.items[0].snippet.title} - Uploads`,
-    playlistId,
-    trackCount: 0,
-  });
+  if (!playlistFromDB) {
+    playlistFromDB = await createYoutubePlaylist({
+      title: `${channelResponse.items[0].snippet.title} - Uploads`,
+      playlistId,
+      trackCount: 0,
+    });
+  }
 
   const alreadyVisited = await getAlreadyVisitedSession({
     id: params.id,
@@ -91,12 +93,7 @@ export const loader: LoaderFunction = async ({ params, request }) => {
     headers: {
       [key: string]: string;
     };
-  } = {
-    headers: {
-      "Cache-Control": "public, max-age=120",
-    },
-  };
-
+  } = { headers: {} };
   if (!alreadyVisited) {
     const alreadyVisitedHeaders = await setAlreadyVisitedSession({
       id: params.id,
@@ -107,7 +104,6 @@ export const loader: LoaderFunction = async ({ params, request }) => {
     headers = {
       headers: {
         ...alreadyVisitedHeaders.headers,
-        "Cache-Control": "public, max-age=120",
       },
     };
 
@@ -115,11 +111,11 @@ export const loader: LoaderFunction = async ({ params, request }) => {
       playlistId,
       from: 1,
       to: 5,
-      youtubePlaylistIdFromDB: youtubePlayist.id,
+      youtubePlaylistIdFromDB: playlistFromDB.id,
     });
 
     await updateYoutubePlaylistCount({
-      id: youtubePlayist.id,
+      id: playlistFromDB.id,
       trackCount: res.pageInfo.totalResults,
     });
   }
@@ -128,7 +124,7 @@ export const loader: LoaderFunction = async ({ params, request }) => {
     playlistId,
     trackCountFromDB: playlistFromDB?.trackCount,
     pageNumber,
-    youtubePlaylistIdFromDB: youtubePlayist.id,
+    youtubePlaylistIdFromDB: playlistFromDB.id,
   });
 
   return json<ExtendedResponse>(extendedResponse, headers);
@@ -372,7 +368,13 @@ export default function Channel() {
                               : "text-gray-900"
                           )}
                         >
-                          {track.snippet.title}
+                          <a
+                            href={`https://youtu.be/${track.snippet.resourceId.videoId}`}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            {track.snippet.title}
+                          </a>
                         </td>
                         <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
                           {track.snippet.channelTitle}
