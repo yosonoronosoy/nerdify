@@ -395,7 +395,7 @@ export default function Channel() {
                                 <MinusIcon className="mx-auto block h-4 w-4" />
                               ) : track.spotifyAvailability.kind ===
                                 "PENDING" ? (
-                                <Link to={track.id}>
+                                <Link to={`confirm-track/${track.id}`}>
                                   <ClockIcon className="mx-auto block h-4 w-4 text-yellow-500" />
                                 </Link>
                               ) : track.spotifyAvailability.kind ===
