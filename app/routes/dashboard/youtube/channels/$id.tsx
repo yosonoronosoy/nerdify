@@ -418,7 +418,10 @@ function Row({
         {/* > */}
         {/*   {track.snippet.title} */}
         {/* </a> */}
-        <Link to={`video-player/${track.snippet.resourceId.videoId}`}>
+        <Link
+          prefetch="intent"
+          to={`video-player/${track.snippet.resourceId.videoId}`}
+        >
           {track.snippet.title}
         </Link>
       </td>

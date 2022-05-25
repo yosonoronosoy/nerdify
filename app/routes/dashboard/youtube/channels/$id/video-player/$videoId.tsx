@@ -12,7 +12,15 @@ export const loader: LoaderFunction = async ({ params }) => {
   const videoPlayerRes = await getYoutubeVideoPlayer(params.videoId);
   const [videoPlayer] = videoPlayerRes.items;
 
-  return json<LoaderData>({ embedHtml: videoPlayer.player.embedHtml });
+  const weekInSeconds = 60 * 60 * 24 * 7;
+  return json<LoaderData>(
+    { embedHtml: videoPlayer.player.embedHtml },
+    {
+      headers: {
+        "Cache-Control": `public, max-age=${weekInSeconds}`,
+      },
+    }
+  );
 };
 
 export default function VideoPlayer() {
