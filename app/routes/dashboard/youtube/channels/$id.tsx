@@ -8,13 +8,12 @@ import {
   Form,
   Link,
   Outlet,
-  useFetcher,
   useLoaderData,
   useLocation,
   useSearchParams,
   useTransition,
 } from "@remix-run/react";
-import { json, redirect } from "@remix-run/server-runtime";
+import { json } from "@remix-run/server-runtime";
 import { useLayoutEffect, useRef, useState } from "react";
 import {
   setSessionWithNewAccessToken,
@@ -293,12 +292,13 @@ export default function Channel() {
                 </div>
               )}
               <Form
+                className="h-[800px] overflow-y-auto"
                 method="post"
                 id="bulk-process-form"
                 action={`?${searchParams}`}
               >
-                <table className="min-w-full table-fixed divide-y divide-gray-300">
-                  <thead className="bg-gray-50">
+                <table className="relative min-w-full table-fixed divide-y divide-gray-300 ">
+                  <thead className="sticky top-0 z-10 bg-gray-50">
                     <tr>
                       <th
                         scope="col"
@@ -411,13 +411,16 @@ function Row({
           isSelected ? "text-indigo-600" : "text-gray-900"
         )}
       >
-        <a
-          href={`https://youtu.be/${track.snippet.resourceId.videoId}`}
-          target="_blank"
-          rel="noreferrer"
-        >
+        {/* <a */}
+        {/*   href={`https://youtu.be/${track.snippet.resourceId.videoId}`} */}
+        {/*   target="_blank" */}
+        {/*   rel="noreferrer" */}
+        {/* > */}
+        {/*   {track.snippet.title} */}
+        {/* </a> */}
+        <Link to={`video-player/${track.snippet.resourceId.videoId}`}>
           {track.snippet.title}
-        </a>
+        </Link>
       </td>
       <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
         {track.snippet.channelTitle}

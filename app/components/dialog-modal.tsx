@@ -16,7 +16,7 @@ export function DialogModal({
   isConfirm?: boolean;
   confirmButtonTitle?: string;
   cancelButtonTitle?: string;
-  formId: string;
+  formId?: string;
 }) {
   const cancelButtonRef = useRef(null);
   const navigate = useNavigate();
