@@ -1,6 +1,12 @@
 import { Dialog, RadioGroup, Transition } from "@headlessui/react";
 import { ClockIcon } from "@heroicons/react/outline";
-import { Form, useLoaderData, useNavigate, useParams } from "@remix-run/react";
+import {
+  Form,
+  useLoaderData,
+  useNavigate,
+  useParams,
+  useSearchParams,
+} from "@remix-run/react";
 import type { ActionFunction, LoaderFunction } from "@remix-run/server-runtime";
 import { redirect } from "@remix-run/server-runtime";
 import { json } from "@remix-run/server-runtime";
@@ -15,7 +21,7 @@ import {
 
 type LoaderData = Awaited<ReturnType<typeof getYoutubeVideoByVideoId>>;
 
-export const loader: LoaderFunction = async ({ params }) => {
+export const loader: LoaderFunction = async ({ params, request }) => {
   const videoId = params.videoId;
   invariant(videoId, "videoId is required");
 
@@ -32,14 +38,24 @@ export const action: ActionFunction = async ({ request, params }) => {
   invariant(youtubeVideoId, "videoId is required");
 
   const formData = await request.formData();
-  const { _action, ...dataEntries } = Object.fromEntries(formData);
+  const {
+    _action,
+    page: pageText,
+    ...dataEntries
+  } = Object.fromEntries(formData);
+  const page = Number(pageText);
+  console.log({ page });
+
+  invariant(!Number.isNaN(page), "page must be a number");
 
   if (_action === "set-unavailable") {
     await makeSpotifyTrackUnavailableFromYoutubeVideo({
       youtubeVideoId,
     });
 
-    return redirect(`/dashboard/youtube/channels/${id}`, { status: 301 });
+    return redirect(`/dashboard/youtube/channels/${id}?page=${page}`, {
+      status: 301,
+    });
   }
 
   if (_action === "confirm") {
@@ -51,7 +67,7 @@ export const action: ActionFunction = async ({ request, params }) => {
       youtubeVideoId,
     });
 
-    return redirect(`/dashboard/youtube/channels/${id}`);
+    return redirect(`/dashboard/youtube/channels/${id}?page=${page}`);
   }
 
   return null;
@@ -65,9 +81,9 @@ export default function ConfirmTrackModal() {
   const data = useLoaderData<LoaderData>();
   const { id: channelId } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   const [selected, setSelected] = useState();
-  console.log("selected", selected);
   const [filterQuery, setFilterQuery] = useState("");
   const spotifyTracks = useMemo(
     () => data?.spotifyTracks ?? [],
@@ -164,12 +180,21 @@ export default function ConfirmTrackModal() {
                   </Dialog.Title>
                   <div className="mt-2">
                     {filteredTracks.length > 0 ? (
-                      <Form method="post" id="confirm-track-form">
+                      <Form
+                        reloadDocument
+                        method="post"
+                        id="confirm-track-form"
+                      >
                         <input
                           hidden
                           name="_action"
                           readOnly
                           value={selected ? "confirm" : "set-unavailable"}
+                        />
+                        <input
+                          hidden
+                          name="page"
+                          value={searchParams.get("page") ?? "1"}
                         />
                         <RadioGroup
                           value={selected}

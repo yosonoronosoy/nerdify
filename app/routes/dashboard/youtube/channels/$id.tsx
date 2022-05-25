@@ -8,11 +8,13 @@ import {
   Form,
   Link,
   Outlet,
+  useFetcher,
   useLoaderData,
+  useLocation,
   useSearchParams,
   useTransition,
 } from "@remix-run/react";
-import { json } from "@remix-run/server-runtime";
+import { json, redirect } from "@remix-run/server-runtime";
 import { useLayoutEffect, useRef, useState } from "react";
 import {
   setSessionWithNewAccessToken,
@@ -27,6 +29,7 @@ import {
 } from "~/services/youtube.server";
 
 import { createYoutubeVideo } from "~/models/youtube-video.server";
+import type { YoutubeVideo } from "~/models/youtube-video.server";
 import type { ActionFunction, LoaderFunction } from "@remix-run/server-runtime";
 import {
   createYoutubeChannel,
@@ -93,7 +96,11 @@ export const loader: LoaderFunction = async ({ params, request }) => {
     headers: {
       [key: string]: string;
     };
-  } = { headers: {} };
+  } = {
+    headers: {
+      "Cache-Control": "public, max-age=120",
+    },
+  };
   if (!alreadyVisited) {
     const alreadyVisitedHeaders = await setAlreadyVisitedSession({
       id: params.id,
@@ -206,7 +213,12 @@ export const action: ActionFunction = async ({ request, params }) => {
   const spotifyTracks = Object.entries(dataEntries).map(promiseCallback);
 
   const res = await Promise.all(spotifyTracks);
-  return json(res.filter((item) => item !== null));
+
+  function filterNull(item: YoutubeVideo | null): item is YoutubeVideo {
+    return item !== null;
+  }
+
+  return json<YoutubeVideo[]>(res.filter(filterNull));
 };
 
 function classNames(...classes: string[]) {
@@ -265,7 +277,7 @@ export default function Channel() {
           <div className="inline-block min-w-full py-2 align-middle md:px-6 lg:px-8">
             <div className="relative overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
               {selectedTracks.length > 0 && (
-                <div className="absolute top-0 left-12 flex h-12 items-center space-x-3 bg-gray-50 sm:left-16">
+                <div className="absolute top-2.5 left-12 flex h-12 items-center space-x-3 bg-gray-50 sm:left-16">
                   <button
                     className="inline-flex items-center rounded border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-30"
                     form="bulk-process-form"
@@ -278,12 +290,13 @@ export default function Channel() {
                   <button className="inline-flex items-center rounded border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-30">
                     Create spotify playlist
                   </button>
-                  <button className="inline-flex items-center rounded border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-30">
-                    Recheck Unavailable Tracks
-                  </button>
                 </div>
               )}
-              <Form method="post" id="bulk-process-form">
+              <Form
+                method="post"
+                id="bulk-process-form"
+                action={`?${searchParams}`}
+              >
                 <table className="min-w-full table-fixed divide-y divide-gray-300">
                   <thead className="bg-gray-50">
                     <tr>
@@ -327,87 +340,18 @@ export default function Channel() {
                   </thead>
                   <tbody className="divide-y divide-gray-200 bg-white">
                     {tracks.map((track) => (
-                      <tr
+                      <Row
                         key={track.id}
-                        className={
-                          selectedTracks.includes(track)
-                            ? "bg-gray-50"
-                            : undefined
+                        track={track}
+                        isSelected={selectedTracks.includes(track)}
+                        onCheckboxChange={(e) =>
+                          setSelectedTracks(
+                            e.target.checked
+                              ? [...selectedTracks, track]
+                              : selectedTracks.filter((p) => p !== track)
+                          )
                         }
-                      >
-                        <td className="relative w-12 px-6 sm:w-16 sm:px-8">
-                          {selectedTracks.includes(track) && (
-                            <div className="absolute inset-y-0 left-0 w-0.5 bg-indigo-600" />
-                          )}
-                          <input
-                            type="checkbox"
-                            className="absolute left-4 top-1/2 -mt-2 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 sm:left-6"
-                            name={track.id}
-                            value={track.snippet.title}
-                            checked={selectedTracks.includes(track)}
-                            onChange={(e) =>
-                              setSelectedTracks(
-                                e.target.checked
-                                  ? [...selectedTracks, track]
-                                  : selectedTracks.filter((p) => p !== track)
-                              )
-                            }
-                          />
-                        </td>
-                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                          <img
-                            src={track.snippet.thumbnails.default?.url}
-                            alt="youtube-video-thumbnail"
-                          />
-                        </td>
-                        <td
-                          className={classNames(
-                            "whitespace-nowrap py-4 pr-3 text-sm font-medium",
-                            selectedTracks.includes(track)
-                              ? "text-indigo-600"
-                              : "text-gray-900"
-                          )}
-                        >
-                          <a
-                            href={`https://youtu.be/${track.snippet.resourceId.videoId}`}
-                            target="_blank"
-                            rel="noreferrer"
-                          >
-                            {track.snippet.title}
-                          </a>
-                        </td>
-                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                          {track.snippet.channelTitle}
-                        </td>
-                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                          {(transition.state === "submitting" ||
-                            transition.type === "loaderSubmissionRedirect") &&
-                          selectedTracks.includes(track) ? (
-                            <div>
-                              <div className="mx-auto">
-                                <Spinner />
-                              </div>
-                            </div>
-                          ) : (
-                            <div>
-                              {track.spotifyAvailability.kind ===
-                              "UNCHECKED" ? (
-                                <MinusIcon className="mx-auto block h-4 w-4" />
-                              ) : track.spotifyAvailability.kind ===
-                                "PENDING" ? (
-                                <Link to={`confirm-track/${track.id}`}>
-                                  <ClockIcon className="mx-auto block h-4 w-4 text-yellow-500" />
-                                </Link>
-                              ) : track.spotifyAvailability.kind ===
-                                "AVAILABLE" ? (
-                                <CheckIcon className="mx-auto block h-4 w-4 text-green-500" />
-                              ) : (
-                                <XIcon className="mx-auto block h-4 w-4 text-red-500" />
-                              )}
-                            </div>
-                          )}
-                        </td>
-                      </tr>
+                      />
                     ))}
                   </tbody>
                 </table>
@@ -424,5 +368,85 @@ export default function Channel() {
         </div>
       </div>
     </div>
+  );
+}
+
+function Row({
+  track,
+  isSelected,
+  onCheckboxChange,
+}: {
+  track: ExtendedResponse["items"][number];
+  isSelected: boolean;
+  onCheckboxChange: React.ChangeEventHandler<HTMLInputElement> | undefined;
+  currentPage?: number;
+}) {
+  const transition = useTransition();
+  const location = useLocation();
+  const searchParams = new URLSearchParams(location.search);
+  return (
+    <tr className={isSelected ? "bg-gray-50" : undefined}>
+      <td className="relative w-12 px-6 sm:w-16 sm:px-8">
+        {isSelected && (
+          <div className="absolute inset-y-0 left-0 w-0.5 bg-indigo-600" />
+        )}
+        <input
+          type="checkbox"
+          className="absolute left-4 top-1/2 -mt-2 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 sm:left-6"
+          name={track.id}
+          value={track.snippet.title}
+          checked={isSelected}
+          onChange={onCheckboxChange}
+        />
+      </td>
+      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+        <img
+          src={track.snippet.thumbnails.default?.url}
+          alt="youtube-video-thumbnail"
+        />
+      </td>
+      <td
+        className={classNames(
+          "whitespace-nowrap py-4 pr-3 text-sm font-medium",
+          isSelected ? "text-indigo-600" : "text-gray-900"
+        )}
+      >
+        <a
+          href={`https://youtu.be/${track.snippet.resourceId.videoId}`}
+          target="_blank"
+          rel="noreferrer"
+        >
+          {track.snippet.title}
+        </a>
+      </td>
+      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+        {track.snippet.channelTitle}
+      </td>
+      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+        {(transition.state === "submitting" ||
+          transition.type === "loaderSubmissionRedirect") &&
+        isSelected ? (
+          <div>
+            <div className="mx-auto">
+              <Spinner />
+            </div>
+          </div>
+        ) : (
+          <div>
+            {track.spotifyAvailability.kind === "UNCHECKED" ? (
+              <MinusIcon className="mx-auto block h-4 w-4" />
+            ) : track.spotifyAvailability.kind === "PENDING" ? (
+              <Link to={`confirm-track/${track.id}?${searchParams}`}>
+                <ClockIcon className="mx-auto block h-4 w-4 text-yellow-500" />
+              </Link>
+            ) : track.spotifyAvailability.kind === "AVAILABLE" ? (
+              <CheckIcon className="mx-auto block h-4 w-4 text-green-500" />
+            ) : (
+              <XIcon className="mx-auto block h-4 w-4 text-red-500" />
+            )}
+          </div>
+        )}
+      </td>
+    </tr>
   );
 }
