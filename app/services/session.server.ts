@@ -2,6 +2,7 @@ import type { Session } from "@remix-run/server-runtime";
 import { redirect } from "@remix-run/server-runtime";
 import { createCookieSessionStorage } from "@remix-run/node";
 import invariant from "tiny-invariant";
+import { spotifyStrategy } from "./auth.server";
 
 invariant(process.env.SESSION_SECRET, "SESSION_SECRET must be set");
 
@@ -19,6 +20,11 @@ export const sessionStorage = createCookieSessionStorage({
 export async function getSession(request: Request) {
   const cookie = request.headers.get("Cookie");
   return sessionStorage.getSession(cookie);
+}
+
+export async function getSpotifySession(request: Request) {
+  const spotifySession = await spotifyStrategy.getSession(request);
+  return spotifySession;
 }
 
 export async function setNewCookie(

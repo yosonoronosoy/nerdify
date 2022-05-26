@@ -2,6 +2,7 @@ import {
   CheckIcon,
   ClockIcon,
   MinusIcon,
+  StarIcon,
   XIcon,
 } from "@heroicons/react/outline";
 import {
@@ -38,6 +39,7 @@ import { Spinner } from "~/icons/spinner";
 import Pagination from "~/components/pagination";
 import {
   getAlreadyVisitedSession,
+  getSpotifySession,
   setAlreadyVisitedSession,
 } from "~/services/session.server";
 import {
@@ -45,6 +47,8 @@ import {
   getYoutubePlaylistByPlaylistId,
   updateYoutubePlaylistCount,
 } from "~/models/youtube-playlist.server";
+import { getUserByEmail } from "~/models/user.server";
+import invariant from "tiny-invariant";
 
 type LoaderData = ExtendedResponse | null;
 
@@ -126,7 +130,13 @@ export const loader: LoaderFunction = async ({ params, request }) => {
     });
   }
 
+  const spotifySession = await getSpotifySession(request);
+  invariant(spotifySession?.user, "this should never happen");
+
+  const userId = spotifySession.user.id;
+
   const extendedResponse = await getPlaylistResponse({
+    userId,
     playlistId,
     trackCountFromDB: playlistFromDB?.trackCount,
     pageNumber,
@@ -411,13 +421,6 @@ function Row({
           isSelected ? "text-indigo-600" : "text-gray-900"
         )}
       >
-        {/* <a */}
-        {/*   href={`https://youtu.be/${track.snippet.resourceId.videoId}`} */}
-        {/*   target="_blank" */}
-        {/*   rel="noreferrer" */}
-        {/* > */}
-        {/*   {track.snippet.title} */}
-        {/* </a> */}
         <Link
           prefetch="intent"
           to={`video-player/${track.snippet.resourceId.videoId}`}
@@ -426,7 +429,13 @@ function Row({
         </Link>
       </td>
       <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-        {track.snippet.channelTitle}
+        {/* WARNING: check if this works */}
+        <div>{track.snippet.channelTitle}</div>
+        {track.trackRating ? (
+          <Rating review={{ rating: track.trackRating.rating }} />
+        ) : (
+          <div className="h-4" />
+        )}
       </td>
       <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
         {(transition.state === "submitting" ||
@@ -454,5 +463,22 @@ function Row({
         )}
       </td>
     </tr>
+  );
+}
+
+function Rating({ review }: { review: { rating: number } }) {
+  return (
+    <div className="mt-4 flex items-center">
+      {[0, 1, 2, 3, 4].map((rating) => (
+        <StarIcon
+          key={`star-raging-${rating}`}
+          className={classNames(
+            review.rating > rating ? "text-yellow-400" : "text-gray-300",
+            "h-5 w-5 flex-shrink-0"
+          )}
+          aria-hidden="true"
+        />
+      ))}
+    </div>
   );
 }

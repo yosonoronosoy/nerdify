@@ -1,10 +1,5 @@
-import type {
-  ActionFunction,
-  LoaderFunction,
-  MetaFunction,
-} from "@remix-run/node";
-import { json, redirect } from "@remix-run/node";
-import { Form, Link, useLoaderData } from "@remix-run/react";
+import type { LoaderFunction, MetaFunction } from "@remix-run/node";
+import { Form, useLoaderData } from "@remix-run/react";
 import type { Session } from "remix-auth-spotify";
 
 import { spotifyStrategy } from "~/services/auth.server";

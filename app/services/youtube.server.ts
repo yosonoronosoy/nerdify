@@ -1,4 +1,4 @@
-import type { Status } from "@prisma/client";
+import type { Status, TrackRating } from "@prisma/client";
 import {
   addOneToManyCacheYoutubePlaylistPages,
   getCachedYoutubePlaylistPage,
@@ -242,31 +242,35 @@ type SpotifyAvailability =
       kind: "PENDING";
     };
 
-type YoutubeResponseWithSpotifyAvailability = Omit<
+type YoutubeResponseWithSpotifyAvailabilityAndTrackRating = Omit<
   YoutubePlaylistItems,
   "items"
 > & {
   items: (YoutubePlaylistItems["items"][number] & {
     spotifyAvailability: SpotifyAvailability;
+    trackRating?: TrackRating;
   })[];
 };
 
-export type ExtendedResponse = YoutubeResponseWithSpotifyAvailability & {
-  nextPageToken: string | null;
-  totalItems: number;
-};
+export type ExtendedResponse =
+  YoutubeResponseWithSpotifyAvailabilityAndTrackRating & {
+    nextPageToken: string | null;
+    totalItems: number;
+  };
 
 export async function getPlaylistResponse({
   playlistId,
   trackCountFromDB,
   pageNumber,
   youtubePlaylistIdFromDB,
+  userId,
 }: {
   playlistId: string;
   trackCountFromDB?: number;
   nextPageToken?: string;
   pageNumber?: number;
   youtubePlaylistIdFromDB: string;
+  userId?: string;
 }) {
   let videosResponse: YoutubePlaylistItems;
 
@@ -302,26 +306,32 @@ export async function getPlaylistResponse({
     videosResponse.items.map(async (item) => {
       const track = await getYoutubeVideoByTitle({
         title: item.snippet.title,
+        userId,
       });
 
       let spotifyAvailability: SpotifyAvailability;
+      let trackRating: TrackRating | undefined;
       if (!track) {
         spotifyAvailability = { kind: "UNCHECKED" };
       } else {
         spotifyAvailability = { kind: track.availability };
+        trackRating =
+          track.trackRating.length > 0 ? track.trackRating[0] : undefined;
       }
 
       return {
         ...item,
         spotifyAvailability,
+        trackRating,
       };
     })
   );
 
-  const extendedResponse: YoutubeResponseWithSpotifyAvailability = {
-    ...videosResponse,
-    items,
-  };
+  const extendedResponse: YoutubeResponseWithSpotifyAvailabilityAndTrackRating =
+    {
+      ...videosResponse,
+      items,
+    };
 
   return {
     ...extendedResponse,

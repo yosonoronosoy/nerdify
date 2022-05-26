@@ -1,4 +1,4 @@
-import type { SpotifyTrack, YoutubeVideo } from "@prisma/client";
+import type { SpotifyTrack, TrackRating, YoutubeVideo } from "@prisma/client";
 import { prisma } from "~/db.server";
 
 import type {
@@ -13,7 +13,12 @@ import {
 export type { YoutubeVideo } from "@prisma/client";
 
 function getVideo(
-  video: (YoutubeVideo & { spotifyTracks: SpotifyTrack[] }) | null
+  video:
+    | (YoutubeVideo & {
+        spotifyTracks: SpotifyTrack[];
+        trackRating: TrackRating[];
+      })
+    | null
 ) {
   if (!video) {
     return null;
@@ -36,10 +41,16 @@ function getVideo(
 
 export async function getYoutubeVideoByVideoId({
   youtubeVideoId,
-}: Pick<YoutubeVideo, "youtubeVideoId">) {
+  userId,
+}: Pick<YoutubeVideo, "youtubeVideoId"> & { userId?: string }) {
   const video = await prisma.youtubeVideo.findFirst({
     where: { youtubeVideoId },
-    include: { spotifyTracks: true },
+    include: {
+      spotifyTracks: true,
+      trackRating: {
+        where: { userId },
+      },
+    },
   });
 
   return getVideo(video);
@@ -47,10 +58,16 @@ export async function getYoutubeVideoByVideoId({
 
 export async function getYoutubeVideoByTitle({
   title,
-}: Pick<YoutubeVideo, "title">) {
+  userId,
+}: Pick<YoutubeVideo, "title"> & { userId?: string }) {
   const video = await prisma.youtubeVideo.findFirst({
     where: { title },
-    include: { spotifyTracks: true },
+    include: {
+      spotifyTracks: true,
+      trackRating: {
+        where: { userId },
+      },
+    },
   });
 
   return getVideo(video);
