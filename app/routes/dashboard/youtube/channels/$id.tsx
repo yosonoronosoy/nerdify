@@ -2,9 +2,9 @@ import {
   CheckIcon,
   ClockIcon,
   MinusIcon,
-  StarIcon,
   XIcon,
 } from "@heroicons/react/outline";
+import { StarIcon as StarIconSolid } from "@heroicons/react/solid";
 import {
   Form,
   Link,
@@ -47,8 +47,8 @@ import {
   getYoutubePlaylistByPlaylistId,
   updateYoutubePlaylistCount,
 } from "~/models/youtube-playlist.server";
-import { getUserByEmail } from "~/models/user.server";
 import invariant from "tiny-invariant";
+import { getUserBySpotifyId } from "~/models/user.server";
 
 type LoaderData = ExtendedResponse | null;
 
@@ -133,7 +133,10 @@ export const loader: LoaderFunction = async ({ params, request }) => {
   const spotifySession = await getSpotifySession(request);
   invariant(spotifySession?.user, "this should never happen");
 
-  const userId = spotifySession.user.id;
+  const spotifyUserId = spotifySession.user.id;
+  const user = await getUserBySpotifyId(spotifyUserId);
+  invariant(user, "this should never happen");
+  const userId = user.id;
 
   const extendedResponse = await getPlaylistResponse({
     userId,
@@ -286,7 +289,7 @@ export default function Channel() {
           <div className="inline-block min-w-full py-2 align-middle md:px-6 lg:px-8">
             <div className="relative overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
               {selectedTracks.length > 0 && (
-                <div className="absolute top-2.5 left-12 flex h-12 items-center space-x-3 bg-gray-50 sm:left-16">
+                <div className="absolute top-0 left-12 z-20 flex h-12 items-center space-x-3 bg-gray-50 sm:left-16">
                   <button
                     className="inline-flex items-center rounded border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-30"
                     form="bulk-process-form"
@@ -403,7 +406,7 @@ function Row({
         <input
           type="checkbox"
           className="absolute left-4 top-1/2 -mt-2 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 sm:left-6"
-          name={track.id}
+          name={track.snippet.resourceId.videoId}
           value={track.snippet.title}
           checked={isSelected}
           onChange={onCheckboxChange}
@@ -425,17 +428,17 @@ function Row({
           prefetch="intent"
           to={`video-player/${track.snippet.resourceId.videoId}`}
         >
-          {track.snippet.title}
+          <div>{track.snippet.title}</div>
+          {track.trackRating ? (
+            <Rating review={{ rating: track.trackRating.rating }} />
+          ) : (
+            <div className="h-4" />
+          )}
         </Link>
       </td>
       <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
         {/* WARNING: check if this works */}
-        <div>{track.snippet.channelTitle}</div>
-        {track.trackRating ? (
-          <Rating review={{ rating: track.trackRating.rating }} />
-        ) : (
-          <div className="h-4" />
-        )}
+        {track.snippet.channelTitle}
       </td>
       <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
         {(transition.state === "submitting" ||
@@ -451,7 +454,9 @@ function Row({
             {track.spotifyAvailability.kind === "UNCHECKED" ? (
               <MinusIcon className="mx-auto block h-4 w-4" />
             ) : track.spotifyAvailability.kind === "PENDING" ? (
-              <Link to={`confirm-track/${track.id}?${searchParams}`}>
+              <Link
+                to={`confirm-track/${track.snippet.resourceId.videoId}?${searchParams}`}
+              >
                 <ClockIcon className="mx-auto block h-4 w-4 text-yellow-500" />
               </Link>
             ) : track.spotifyAvailability.kind === "AVAILABLE" ? (
@@ -467,13 +472,15 @@ function Row({
 }
 
 function Rating({ review }: { review: { rating: number } }) {
+  const { rating: rawRating } = review;
+  const rating = (rawRating * 5) / 100;
   return (
     <div className="mt-4 flex items-center">
-      {[0, 1, 2, 3, 4].map((rating) => (
-        <StarIcon
-          key={`star-raging-${rating}`}
+      {[1, 2, 3, 4, 5].map((currentRating) => (
+        <StarIconSolid
+          key={currentRating}
           className={classNames(
-            review.rating > rating ? "text-yellow-400" : "text-gray-300",
+            rating < currentRating ? "text-gray-300" : "text-indigo-300",
             "h-5 w-5 flex-shrink-0"
           )}
           aria-hidden="true"

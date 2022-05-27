@@ -27,6 +27,12 @@ export async function getSpotifySession(request: Request) {
   return spotifySession;
 }
 
+export async function getUserIdFromSpotifySession(request: Request) {
+  const spotifySession = await getSpotifySession(request);
+  if (!spotifySession) return null;
+  return spotifySession.user?.id;
+}
+
 export async function setNewCookie(
   sessionKey: string,
   {

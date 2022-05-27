@@ -4,6 +4,7 @@ import {
   getCachedYoutubePlaylistPage,
   setCacheYoutubePlaylistPage,
 } from "~/models/redis.server";
+import { getTrackRatingByYoutubeVideoId } from "~/models/track-rating.server";
 import { getYoutubeChannel } from "~/models/youtube-channel.server";
 import {
   createYoutubePlaylistPage,
@@ -313,6 +314,11 @@ export async function getPlaylistResponse({
       let trackRating: TrackRating | undefined;
       if (!track) {
         spotifyAvailability = { kind: "UNCHECKED" };
+        trackRating =
+          (await getTrackRatingByYoutubeVideoId({
+            userId: userId ?? "",
+            youtubeVideoIdFromAPI: item.snippet.resourceId.videoId,
+          })) ?? undefined;
       } else {
         spotifyAvailability = { kind: track.availability };
         trackRating =

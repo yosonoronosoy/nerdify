@@ -15,21 +15,40 @@ import { DialogModal } from "~/components/dialog-modal";
 import { getYoutubeVideoPlayer } from "~/services/youtube.server";
 import { Rating } from "react-simple-star-rating";
 import styles from "~/styles/video-player.css";
+import { getUserIdFromSpotifySession } from "~/services/session.server";
+import {
+  getTrackRatingByYoutubeVideoId,
+  upsertTrackRatingForYoutubeVideo,
+} from "~/models/track-rating.server";
+import { getUserBySpotifyId } from "~/models/user.server";
+import { getYoutubeVideoByVideoId } from "~/models/youtube-video.server";
 
 export const links: LinksFunction = () => {
   return [{ rel: "stylesheet", href: styles }];
 };
 
-type LoaderData = { embedHtml: string };
-export const loader: LoaderFunction = async ({ params }) => {
+type LoaderData = { embedHtml: string; rating?: number; ratingId?: string };
+export const loader: LoaderFunction = async ({ params, request }) => {
+  const spotifyUserId = await getUserIdFromSpotifySession(request);
+
+  invariant(spotifyUserId, "spotifyUserId");
   invariant(params.videoId, "videoId is required");
+
   const videoPlayerRes = await getYoutubeVideoPlayer(params.videoId);
   const [videoPlayer] = videoPlayerRes.items;
 
+  const ratingFromDB = await getTrackRatingByYoutubeVideoId({
+    youtubeVideoIdFromAPI: params.videoId,
+    spotifyUserId,
+  });
+
   const weekInSeconds = 60 * 60 * 24 * 7;
-  console.log({ embedHtml: videoPlayer.player.embedHtml });
   return json<LoaderData>(
-    { embedHtml: videoPlayer.player.embedHtml },
+    {
+      embedHtml: videoPlayer.player.embedHtml,
+      rating: ratingFromDB?.rating,
+      ratingId: ratingFromDB?.id,
+    },
     {
       headers: {
         "Cache-Control": `public, max-age=${weekInSeconds}`,
@@ -38,13 +57,38 @@ export const loader: LoaderFunction = async ({ params }) => {
   );
 };
 
-export const action: ActionFunction = async ({ params }) => {
+export const action: ActionFunction = async ({ params, request }) => {
   invariant(params.videoId, "videoId is required");
+
+  const spotifyUserId = await getUserIdFromSpotifySession(request);
+  invariant(spotifyUserId, "spotifyUserId is required");
+
+  const formData = await request.formData();
+  const rating = Number(formData.get("rating"));
+  const ratingId = formData.get("ratingId");
+
+  const user = await getUserBySpotifyId(spotifyUserId);
+  invariant(user, "this should never happen");
+  const youtubeVideo = await getYoutubeVideoByVideoId({
+    youtubeVideoId: params.videoId,
+  });
+
+  console.log({ youtubeVideo });
+
+  await upsertTrackRatingForYoutubeVideo({
+    userIdFromDB: user.id,
+    youtubeVideoIdFromAPI: params.videoId,
+    rating: !Number.isNaN(rating) ? rating : undefined,
+    ratingIdFromDB: typeof ratingId === "string" ? ratingId : undefined,
+    youtubeVideoIdFromDB: youtubeVideo?.id ?? undefined,
+  });
+
   return null;
 };
 
 export default function VideoPlayer() {
   const fetcher = useFetcher();
+  const data = useLoaderData<LoaderData>();
   const [searchParams] = useSearchParams();
   const { embedHtml } = useLoaderData<LoaderData>();
   const { id: channelId } = useParams();
@@ -56,9 +100,12 @@ export default function VideoPlayer() {
         <div dangerouslySetInnerHTML={{ __html: embedHtml }} />
         <Rating
           onClick={(rating) =>
-            fetcher.submit({ rating: String(rating) }, { method: "post" })
+            fetcher.submit(
+              { rating: String(rating), ratingId: data?.ratingId ?? "" },
+              { method: "post" }
+            )
           }
-          ratingValue={0}
+          ratingValue={data.rating ?? 0}
           size={24}
           transition
           allowHalfIcon

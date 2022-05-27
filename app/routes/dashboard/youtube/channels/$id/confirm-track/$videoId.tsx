@@ -24,8 +24,10 @@ type LoaderData = Awaited<ReturnType<typeof getYoutubeVideoByVideoId>>;
 export const loader: LoaderFunction = async ({ params, request }) => {
   const videoId = params.videoId;
   invariant(videoId, "videoId is required");
+  console.log({videoId})
 
   const video = await getYoutubeVideoByVideoId({ youtubeVideoId: videoId });
+  console.log({video})
 
   return json<LoaderData>(video);
 };
