@@ -7,6 +7,7 @@ export function DialogModal({
   children,
   prevUrl,
   formId,
+  routeState,
   confirmButtonTitle = "Confirm",
   cancelButtonTitle = "Cancel",
   isConfirm = true,
@@ -17,6 +18,7 @@ export function DialogModal({
   confirmButtonTitle?: string;
   cancelButtonTitle?: string;
   formId?: string;
+  routeState?: any;
 }) {
   const cancelButtonRef = useRef(null);
   const navigate = useNavigate();
@@ -25,10 +27,12 @@ export function DialogModal({
 
   function handleClose() {
     setOpen(false);
-    navigate(prevUrl);
+    navigate(prevUrl, { state: routeState });
   }
 
   return (
+    // FIX: Buttons title and what to do after submission
+    // FIX: Add Form component
     <Transition.Root show={open} as={Fragment}>
       <Dialog
         as="div"

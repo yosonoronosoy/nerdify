@@ -6,6 +6,9 @@ const youtubeVideoPlayerSchema = z.object({
   player: z.object({
     embedHtml: z.string(),
   }),
+  snippet: z.object({
+    title: z.string(),
+  }),
 });
 
 export type YoutubeVideoPlayer = z.infer<typeof youtubeVideoPlayerSchema>;

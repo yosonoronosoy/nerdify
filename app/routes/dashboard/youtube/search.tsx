@@ -19,6 +19,7 @@ export const loader: LoaderFunction = async ({ request }) => {
   return json<SearchChannelResponse>(res);
 };
 
+// FIX: MOVE THIS SEARCH FUNCTIONALITY UP TO YOUTUBE COMPONENT
 export default function YoutubeSearch() {
   const data = useLoaderData<LoaderData>();
 

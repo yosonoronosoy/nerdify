@@ -275,6 +275,7 @@ export default function Channel() {
     <div className="px-4 sm:px-6 lg:px-8">
       <Outlet />
       <Form method="post">
+        {/* FIX: refresh token should be done automatically */}
         <button
           className="inline-flex items-center rounded border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-30"
           name="_action"
@@ -284,23 +285,18 @@ export default function Channel() {
           Refresh Token
         </button>
       </Form>
-      <div className="mt-8 flex flex-col">
+      <div className="isolate mt-8 flex flex-col">
         <div className="-my-2 -mx-4 overflow-x-auto sm:-mx-6 lg:-mx-8">
           <div className="inline-block min-w-full py-2 align-middle md:px-6 lg:px-8">
             <div className="relative overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
               {selectedTracks.length > 0 && (
-                <div className="absolute top-0 left-12 z-20 flex h-12 items-center space-x-3 bg-gray-50 sm:left-16">
+                <div className="absolute top-2.5 left-12 z-20 flex h-12 items-center space-x-3 bg-gray-50 sm:left-16">
                   <button
                     className="inline-flex items-center rounded border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-30"
                     form="bulk-process-form"
                     disabled={transition.state === "submitting"}
                   >
                     Check Spotify Availability
-                  </button>
-
-                  {/* TODO: only show this when the tracks are available in spotify */}
-                  <button className="inline-flex items-center rounded border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-30">
-                    Create spotify playlist
                   </button>
                 </div>
               )}
@@ -311,7 +307,7 @@ export default function Channel() {
                 action={`?${searchParams}`}
               >
                 <table className="relative min-w-full table-fixed divide-y divide-gray-300 ">
-                  <thead className="sticky top-0 z-10 bg-gray-50">
+                  <thead className="sticky top-0 z-10  bg-gray-50">
                     <tr>
                       <th
                         scope="col"
@@ -437,7 +433,6 @@ function Row({
         </Link>
       </td>
       <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-        {/* WARNING: check if this works */}
         {track.snippet.channelTitle}
       </td>
       <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">

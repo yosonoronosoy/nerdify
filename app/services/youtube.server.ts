@@ -13,7 +13,6 @@ import {
   getYoutubePlaylistPageByPageToken,
 } from "~/models/youtube-playlist-page.server";
 import { getYoutubeVideoByTitle } from "~/models/youtube-video.server";
-import { youtubeVideoPlayerResponseSchema } from "~/youtube-video-player.server";
 import { youtubeChannelListSchema } from "~/zod-schemas/youtube-channels-schema.server";
 import type { YoutubePlaylistItems } from "~/zod-schemas/youtube-playlist-schema.server";
 import { youtubePlaylistItemsSchema } from "~/zod-schemas/youtube-playlist-schema.server";
@@ -23,6 +22,7 @@ import type {
   YoutubeSearchResponse,
 } from "~/zod-schemas/youtube-search-schema.server";
 import { youtubeSearchResponse } from "~/zod-schemas/youtube-search-schema.server";
+import { youtubeVideoPlayerResponseSchema } from "~/zod-schemas/youtube-video-player.server";
 
 const baseUrl = "https://www.googleapis.com/youtube/v3";
 const channelUrl = `${baseUrl}/channels`;
@@ -348,7 +348,7 @@ export async function getPlaylistResponse({
 
 export async function getYoutubeVideoPlayer(id: string) {
   const params = getQuerystring({
-    part: "player",
+    part: "player,snippet",
     id,
   });
   const res = await fetch(`${videosUrl}?${params}`).then((res) => res.json());

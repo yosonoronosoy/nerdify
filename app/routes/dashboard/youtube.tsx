@@ -1,4 +1,5 @@
 import { Link, Outlet, useLocation } from "@remix-run/react";
+import { classNames } from "~/utils";
 
 const tabs = [
   { name: "Search", href: "search" },
@@ -7,13 +8,8 @@ const tabs = [
   { name: "Videos", href: "videos" },
 ];
 
-function classNames(...classes: string[]) {
-  return classes.filter(Boolean).join(" ");
-}
-
 export default function Youtube() {
   const location = useLocation();
-  const currentTab = location.pathname.split("/").at(-1);
 
   return (
     <div className="mt-8">
@@ -26,7 +22,6 @@ export default function Youtube() {
           id="tabs"
           name="tabs"
           className="block w-full rounded-md border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
-          defaultValue={currentTab}
         >
           {tabs.map((tab) => (
             <option key={tab.name}>{tab.name}</option>
@@ -41,7 +36,11 @@ export default function Youtube() {
           {tabs.map((tab, tabIdx) => (
             <Link
               key={tab.name}
-              to={tab.href}
+              to={
+                location.pathname.includes(tab.href)
+                  ? location.pathname
+                  : tab.href
+              }
               className={classNames(
                 location.pathname.includes(tab.href)
                   ? "text-gray-900"

@@ -22,12 +22,19 @@ import {
 } from "~/models/track-rating.server";
 import { getUserBySpotifyId } from "~/models/user.server";
 import { getYoutubeVideoByVideoId } from "~/models/youtube-video.server";
+import { Dialog } from "@headlessui/react";
+import { useState } from "react";
 
 export const links: LinksFunction = () => {
   return [{ rel: "stylesheet", href: styles }];
 };
 
-type LoaderData = { embedHtml: string; rating?: number; ratingId?: string };
+type LoaderData = {
+  embedHtml: string;
+  rating?: number;
+  ratingId?: string;
+  title: string;
+};
 export const loader: LoaderFunction = async ({ params, request }) => {
   const spotifyUserId = await getUserIdFromSpotifySession(request);
 
@@ -46,6 +53,7 @@ export const loader: LoaderFunction = async ({ params, request }) => {
   return json<LoaderData>(
     {
       embedHtml: videoPlayer.player.embedHtml,
+      title: videoPlayer.snippet.title,
       rating: ratingFromDB?.rating,
       ratingId: ratingFromDB?.id,
     },
@@ -73,8 +81,6 @@ export const action: ActionFunction = async ({ params, request }) => {
     youtubeVideoId: params.videoId,
   });
 
-  console.log({ youtubeVideo });
-
   await upsertTrackRatingForYoutubeVideo({
     userIdFromDB: user.id,
     youtubeVideoIdFromAPI: params.videoId,
@@ -97,6 +103,18 @@ export default function VideoPlayer() {
   return (
     <DialogModal prevUrl={prevUrl}>
       <div className="grid place-items-center gap-4">
+        <Dialog.Title
+          as="h3"
+          className="text-lg font-medium leading-6 text-gray-900"
+        >
+          Preview Track
+        </Dialog.Title>
+        <Dialog.Title
+          as="h4"
+          className="mt-[-1rem] text-base font-medium leading-6 text-gray-500"
+        >
+          {data.title}
+        </Dialog.Title>
         <div dangerouslySetInnerHTML={{ __html: embedHtml }} />
         <Rating
           onClick={(rating) =>
