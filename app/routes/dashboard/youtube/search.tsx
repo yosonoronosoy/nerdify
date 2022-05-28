@@ -25,9 +25,6 @@ export default function YoutubeSearch() {
 
   return (
     <div>
-      <Form method="get" className="mx-auto w-3/4 md:w-3/4 lg:w-5/12">
-        <SearchBarWithButton />
-      </Form>
       {data && data.items.length > 0 ? (
         <ul className="mt-16">
           {data.items.map((item) => (
@@ -94,14 +91,14 @@ export default function YoutubeSearch() {
   );
 }
 
-export function SearchBarWithButton() {
+export function SearchBarWithButton({ title }: { title: string }) {
   return (
     <div>
       <label
         htmlFor="searh-query"
         className="block text-sm font-medium text-gray-700"
       >
-        Search Channels
+        Search {title}
       </label>
       <div className="mt-1 flex rounded-md shadow-sm">
         <input
@@ -109,7 +106,7 @@ export function SearchBarWithButton() {
           name="q"
           id="search-query"
           className="block w-full rounded-none rounded-l-md border-gray-300  focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-          placeholder="Enter channel name..."
+          placeholder={`Enter ${title} name`}
         />
         <button
           type="submit"

@@ -1,8 +1,8 @@
-import { Link, Outlet, useLocation } from "@remix-run/react";
+import { Form, Link, Outlet, useLocation } from "@remix-run/react";
 import { classNames } from "~/utils";
+import { SearchBarWithButton } from "./youtube/search";
 
 const tabs = [
-  { name: "Search", href: "search" },
   { name: "Channels", href: "channels" },
   { name: "Playlists", href: "playlists" },
   { name: "Videos", href: "videos" },
@@ -10,6 +10,9 @@ const tabs = [
 
 export default function Youtube() {
   const location = useLocation();
+  const routeSections = location.pathname.split("/");
+  const ytIndex = routeSections.findIndex((section) => section === "youtube");
+  const currentTab = routeSections.at(ytIndex + 1);
 
   return (
     <div className="mt-8">
@@ -28,7 +31,7 @@ export default function Youtube() {
           ))}
         </select>
       </div>
-      <div className="mb-16 hidden sm:block">
+      <div className="mb-14 hidden sm:block">
         <nav
           className="relatie z-0 flex divide-x divide-gray-200 rounded-lg shadow"
           aria-label="Tabs"
@@ -67,6 +70,24 @@ export default function Youtube() {
           ))}
         </nav>
       </div>
+      {currentTab ? (
+        <Form
+          method="get"
+          action="search"
+          className="mx-auto w-3/4 md:w-3/4 lg:w-5/12"
+        >
+          <SearchBarWithButton
+            title={
+              currentTab !== "search"
+                ? currentTab
+                    .split("")
+                    .slice(0, currentTab.length - 1)
+                    .join("") ?? ""
+                : currentTab
+            }
+          />
+        </Form>
+      ) : null}
       <Outlet />
     </div>
   );

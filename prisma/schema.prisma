@@ -52,6 +52,8 @@ model YoutubeChannel {
   channelId     String         @unique
   status        Status
   spotifyTracks SpotifyTrack[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
 }
 
 model TrackRating {
@@ -62,6 +64,8 @@ model TrackRating {
   youtubeVideoId String?
   youtubeVideo   YoutubeVideo? @relation(fields: [youtubeVideoId], references: [id])
   serviceTrackId String // i.e. youtubeVideoId || NTS trackId 
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
 }
 
 model YoutubeVideo {
@@ -85,4 +89,6 @@ model SpotifyTrack {
   artists        Json?
   name           String
   trackUrl       String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
 }
