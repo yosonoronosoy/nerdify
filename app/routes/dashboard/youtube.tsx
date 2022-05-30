@@ -70,7 +70,7 @@ export default function Youtube() {
         <Form
           method="get"
           action={`${currentTab}/search`}
-          className="mx-auto w-3/4 md:w-3/4 lg:w-5/12"
+          className="mx-auto mb-12 w-3/4 md:w-3/4 lg:w-5/12"
         >
           <SearchBarWithButton
             title={
