@@ -1,9 +1,9 @@
-import type { LoaderFunction } from "@remix-run/server-runtime";
+import { ExclamationIcon, SearchIcon } from "@heroicons/react/outline";
+import type { LoaderFunction } from "@remix-run/node";
+import { json } from "@remix-run/node";
 import { Link, useLoaderData } from "@remix-run/react";
-import { json } from "@remix-run/server-runtime";
 import type { SearchChannelResponse } from "~/services/youtube.server";
 import { searchChannel } from "~/services/youtube.server";
-import { ExclamationIcon, SearchIcon } from "@heroicons/react/outline";
 
 type LoaderData = SearchChannelResponse | null;
 
@@ -11,24 +11,16 @@ export const loader: LoaderFunction = async ({ request }) => {
   const url = new URL(request.url);
 
   const searchQuery = url.searchParams.get("q");
-  const tab = url.searchParams.get("tab");
 
   if (!searchQuery) {
     return null;
   }
 
-  switch (tab) {
-    case "channels": {
-      const res = await searchChannel(searchQuery);
-      return json<SearchChannelResponse>(res);
-    }
-    default: {
-      return null;
-    }
-  }
+  const res = await searchChannel(searchQuery);
+  return json<SearchChannelResponse>(res);
 };
 
-export default function YoutubeSearch() {
+export default function YoutubeSearchChannel() {
   const data = useLoaderData<LoaderData>();
 
   return (

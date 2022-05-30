@@ -39,11 +39,7 @@ export default function Youtube() {
           {tabs.map((tab, tabIdx) => (
             <Link
               key={tab.name}
-              to={
-                location.pathname.includes(tab.href)
-                  ? location.pathname
-                  : tab.href
-              }
+              to={tab.href}
               className={classNames(
                 location.pathname.includes(tab.href)
                   ? "text-gray-900"
@@ -73,7 +69,7 @@ export default function Youtube() {
       {currentTab ? (
         <Form
           method="get"
-          action="search"
+          action={`${currentTab}/search`}
           className="mx-auto w-3/4 md:w-3/4 lg:w-5/12"
         >
           <SearchBarWithButton
