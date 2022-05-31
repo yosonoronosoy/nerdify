@@ -3,7 +3,14 @@ import {
   ViewGridIcon as ViewGridIconSolid,
   PlusSmIcon as PlusSmIconSolid,
 } from "@heroicons/react/solid";
+import type { LoaderFunction } from "@remix-run/node";
+import { json } from "@remix-run/node";
+import { getYoutubeChannelsByUserId } from "~/models/youtube-channel.server";
+import { getUserIdFromSession } from "~/services/session.server";
 import { classNames } from "~/utils";
+import type { YoutubeChannel } from "~/models/youtube-channel.server";
+import { useLoaderData } from "@remix-run/react";
+import { useState } from "react";
 
 type Tab = typeof tabs[number];
 const tabs = [
@@ -12,48 +19,22 @@ const tabs = [
   { name: "Favorited", href: "#", current: false },
 ];
 
-type Channel = typeof channels[number];
-const channels = [
-  {
-    name: "IMG_4985.HEIC",
-    size: "3.9 MB",
-    source:
-      "https://images.unsplash.com/photo-1582053433976-25c00369fc93?ixid=MXwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHw%3D&ixlib=rb-1.2.1&auto=format&fit=crop&w=512&q=80",
-    current: true,
-  },
-  // More files...
-];
+type LoaderData = {
+  channels: (YoutubeChannel & { _count: { spotifyTracks: number } })[];
+};
+export const loader: LoaderFunction = async ({ request }) => {
+  const userIdFromDB = await getUserIdFromSession(request);
+  const recentlyViewedChannels = await getYoutubeChannelsByUserId(userIdFromDB);
 
-type CurrentChannel = typeof currentChannel;
-const currentChannel = {
-  name: "IMG_4985.HEIC",
-  size: "3.9 MB",
-  source:
-    "https://images.unsplash.com/photo-1582053433976-25c00369fc93?ixid=MXwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHw%3D&ixlib=rb-1.2.1&auto=format&fit=crop&w=512&q=80",
-  information: {
-    "Uploaded by": "Marie Culver",
-    Created: "June 8, 2020",
-    "Last modified": "June 8, 2020",
-    Dimensions: "4032 x 3024",
-    Resolution: "72 x 72",
-  },
-  sharedWith: [
-    {
-      id: 1,
-      name: "Aimee Douglas",
-      imageUrl:
-        "https://images.unsplash.com/photo-1502685104226-ee32379fefbe?ixlib=rb-=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=3&w=1024&h=1024&q=80",
-    },
-    {
-      id: 2,
-      name: "Andrea McMillan",
-      imageUrl:
-        "https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-1.2.1&ixqx=oilqXxSqey&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80",
-    },
-  ],
+  return json<LoaderData>({ channels: recentlyViewedChannels });
 };
 
 export default function ChannelsIndex() {
+  const data = useLoaderData<LoaderData>();
+  const [selectedChannel, setSelectedChannel] = useState<
+    LoaderData["channels"][number] | undefined
+  >(data.channels.at(0));
+
   return (
     <div className="flex flex-1 items-stretch overflow-hidden">
       <main className="flex-1 overflow-y-auto">
@@ -72,12 +53,16 @@ export default function ChannelsIndex() {
           </div>
 
           {/* Gallery */}
-          <Gallery channels={channels} />
+          <Gallery
+            channels={data.channels}
+            current={selectedChannel}
+            onSelect={setSelectedChannel}
+          />
         </div>
       </main>
 
       {/* Details sidebar */}
-      <DetailsSidebar currentChannel={currentChannel} />
+      <DetailsSidebar currentChannel={selectedChannel} />
     </div>
   );
 }
@@ -159,7 +144,19 @@ function DesktopViewTabs({ tabs }: { tabs: Tab[] }) {
   );
 }
 
-function Gallery({ channels }: { channels: Channel[] }) {
+type CurrentChannel = LoaderData["channels"][number];
+type OnSelect = React.Dispatch<
+  React.SetStateAction<CurrentChannel | undefined>
+>;
+function Gallery({
+  channels,
+  current,
+  onSelect,
+}: {
+  channels: LoaderData["channels"];
+  current: CurrentChannel | undefined;
+  onSelect: OnSelect;
+}) {
   return (
     <section className="mt-8 pb-16" aria-labelledby="gallery-heading">
       <h2 id="gallery-heading" className="sr-only">
@@ -167,35 +164,38 @@ function Gallery({ channels }: { channels: Channel[] }) {
       </h2>
       <ul className="grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 sm:gap-x-6 md:grid-cols-4 lg:grid-cols-3 xl:grid-cols-4 xl:gap-x-8">
         {channels.map((channel) => (
-          <li key={channel.name} className="relative">
+          <li key={channel.title} className="relative">
             <div
               className={classNames(
-                channel.current
+                channel.id === current?.id
                   ? "ring-2 ring-indigo-500 ring-offset-2"
                   : "focus-within:ring-2 focus-within:ring-indigo-500 focus-within:ring-offset-2 focus-within:ring-offset-gray-100",
                 "group aspect-w-10 aspect-h-7 block w-full overflow-hidden rounded-lg bg-gray-100"
               )}
             >
               <img
-                src={channel.source}
+                src={channel.image ?? ""}
                 alt=""
                 className={classNames(
-                  channel.current ? "" : "group-hover:opacity-75",
+                  channel.id === current?.id ? "" : "group-hover:opacity-75",
                   "pointer-events-none object-cover"
                 )}
               />
               <button
                 type="button"
                 className="absolute inset-0 focus:outline-none"
+                onClick={() => onSelect(channel)}
               >
-                <span className="sr-only">View details for {channel.name}</span>
+                <span className="sr-only">
+                  View details for {channel.title}
+                </span>
               </button>
             </div>
             <p className="pointer-events-none mt-2 block truncate text-sm font-medium text-gray-900">
-              {channel.name}
+              {channel.title}
             </p>
             <p className="pointer-events-none block text-sm font-medium text-gray-500">
-              {channel.size}
+              {channel.status.toLowerCase()}
             </p>
           </li>
         ))}
@@ -207,23 +207,43 @@ function Gallery({ channels }: { channels: Channel[] }) {
 function DetailsSidebar({
   currentChannel,
 }: {
-  currentChannel: CurrentChannel;
+  currentChannel: CurrentChannel | undefined;
 }) {
+  if (!currentChannel) {
+    return null;
+  }
+  const {
+    id,
+    userId,
+    createdAt,
+    image,
+    isFavorite,
+    updatedAt,
+    status,
+    ...channel
+  } = currentChannel;
+  const spotifyTrackCount = currentChannel._count.spotifyTracks;
+
+  // TODO: format dates and keys
   return (
     <aside className="hidden w-96 overflow-y-auto border-l border-gray-200 bg-white p-8 lg:block">
       <div className="space-y-6 pb-16">
         <div>
-          <div className="mx-auto block h-32 w-32 overflow-hidden rounded-full">
-            <img src={currentChannel.source} alt="" className="object-cover" />
+          <div className="aspect-w-1 mx-auto block h-32 w-32 overflow-hidden rounded-full">
+            <img
+              src={currentChannel?.image ?? ""}
+              alt=""
+              className="object-cover"
+            />
           </div>
           <div className="mt-4 flex items-start justify-between">
             <div>
               <h2 className="text-lg font-medium text-gray-900">
                 <span className="sr-only">Details for </span>
-                {currentChannel.name}
+                {currentChannel.title}
               </h2>
               <p className="text-sm font-medium text-gray-500">
-                {currentChannel.size}
+                {currentChannel.status}
               </p>
             </div>
             <button
@@ -238,15 +258,27 @@ function DetailsSidebar({
         <div>
           <h3 className="font-medium text-gray-900">Information</h3>
           <dl className="mt-2 divide-y divide-gray-200 border-t border-b border-gray-200">
-            {Object.entries(currentChannel.information).map(([key, value]) => (
-              <div
-                key={key}
-                className="flex justify-between py-3 text-sm font-medium"
-              >
-                <dt className="text-gray-500">{key}</dt>
-                <dd className="text-gray-900">{value}</dd>
-              </div>
-            ))}
+            {Object.entries(channel).map(([key, v]) => {
+              const value =
+                key === "_count"
+                  ? spotifyTrackCount
+                  : key === "lastViewedAt"
+                  ? v.toLocaleString()
+                  : v;
+
+              console.log({ key, value });
+              return (
+                <div
+                  key={key}
+                  className="flex justify-between py-3 text-sm font-medium"
+                >
+                  <dt className="text-gray-500">
+                    {key === "_count" ? "Spotify Tracks Processed" : key}
+                  </dt>
+                  <dd className="text-gray-900">{value}</dd>
+                </div>
+              );
+            })}
           </dl>
         </div>
         <div>
@@ -266,58 +298,58 @@ function DetailsSidebar({
         </div>
         <div>
           <h3 className="font-medium text-gray-900">Shared with</h3>
-          <ul className="mt-2 divide-y divide-gray-200 border-t border-b border-gray-200">
-            {currentChannel.sharedWith.map((person) => (
-              <li
-                key={person.id}
-                className="flex items-center justify-between py-3"
-              >
-                <div className="flex items-center">
-                  <img
-                    src={person.imageUrl}
-                    alt=""
-                    className="h-8 w-8 rounded-full"
-                  />
-                  <p className="ml-4 text-sm font-medium text-gray-900">
-                    {person.name}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  className="ml-6 rounded-md bg-white text-sm font-medium text-indigo-600 hover:text-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-                >
-                  Remove<span className="sr-only"> {person.name}</span>
-                </button>
-              </li>
-            ))}
-            <li className="flex items-center justify-between py-2">
-              <button
-                type="button"
-                className="group -ml-1 flex items-center rounded-md bg-white p-1 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              >
-                <span className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-dashed border-gray-300 text-gray-400">
-                  <PlusSmIconSolid className="h-5 w-5" aria-hidden="true" />
-                </span>
-                <span className="ml-4 text-sm font-medium text-indigo-600 group-hover:text-indigo-500">
-                  Share
-                </span>
-              </button>
-            </li>
-          </ul>
+          {/* <ul className="mt-2 divide-y divide-gray-200 border-t border-b border-gray-200"> */}
+          {/*   {currentChannel.sharedWith.map((person) => ( */}
+          {/*     <li */}
+          {/*       key={person.id} */}
+          {/*       className="flex items-center justify-between py-3" */}
+          {/*     > */}
+          {/*       <div className="flex items-center"> */}
+          {/*         <img */}
+          {/*           src={person.imageUrl} */}
+          {/*           alt="" */}
+          {/*           className="h-8 w-8 rounded-full" */}
+          {/*         /> */}
+          {/*         <p className="ml-4 text-sm font-medium text-gray-900"> */}
+          {/*           {person.name} */}
+          {/*         </p> */}
+          {/*       </div> */}
+          {/*       <button */}
+          {/*         type="button" */}
+          {/*         className="ml-6 rounded-md bg-white text-sm font-medium text-indigo-600 hover:text-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2" */}
+          {/*       > */}
+          {/*         Remove<span className="sr-only"> {person.name}</span> */}
+          {/*       </button> */}
+          {/*     </li> */}
+          {/*   ))} */}
+          {/*   <li className="flex items-center justify-between py-2"> */}
+          {/*     <button */}
+          {/*       type="button" */}
+          {/*       className="group -ml-1 flex items-center rounded-md bg-white p-1 focus:outline-none focus:ring-2 focus:ring-indigo-500" */}
+          {/*     > */}
+          {/*       <span className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-dashed border-gray-300 text-gray-400"> */}
+          {/*         <PlusSmIconSolid className="h-5 w-5" aria-hidden="true" /> */}
+          {/*       </span> */}
+          {/*       <span className="ml-4 text-sm font-medium text-indigo-600 group-hover:text-indigo-500"> */}
+          {/*         Share */}
+          {/*       </span> */}
+          {/*     </button> */}
+          {/*   </li> */}
+          {/* </ul> */}
         </div>
         <div className="flex">
           <button
             type="button"
             className="flex-1 rounded-md border border-transparent bg-indigo-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
           >
-            Download
+            Go to channel
           </button>
-          <button
-            type="button"
-            className="ml-3 flex-1 rounded-md border border-gray-300 bg-white py-2 px-4 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-          >
-            Delete
-          </button>
+          {/* <button */}
+          {/*   type="button" */}
+          {/*   className="ml-3 flex-1 rounded-md border border-gray-300 bg-white py-2 px-4 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2" */}
+          {/* > */}
+          {/*   Delete */}
+          {/* </button> */}
         </div>
       </div>
     </aside>

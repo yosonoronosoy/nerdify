@@ -73,9 +73,12 @@ export async function getYoutubeVideoByTitle({
   return getVideo(video);
 }
 
-type YoutubeVideoWithoutId = Omit<YoutubeVideo, "id">;
+type YoutubeVideoWithoutId = Omit<YoutubeVideo, "id" | "favoriteId">;
 
-type SpotifyTrackWithPartialId = Omit<SpotifyTrack, "id" | "youtubeVideoId"> & {
+type SpotifyTrackWithPartialId = Omit<
+  SpotifyTrack,
+  "id" | "youtubeVideoId" | "createdAt" | "updatedAt"
+> & {
   id?: string;
 };
 

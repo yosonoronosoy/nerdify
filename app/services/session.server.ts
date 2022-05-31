@@ -33,6 +33,11 @@ export async function getUserIdFromSpotifySession(request: Request) {
   return spotifySession.user?.id;
 }
 
+export async function getUserIdFromSession(request: Request) {
+  const session = await getSession(request);
+  return session.get("userIdFromDB");
+}
+
 export async function setNewCookie(
   sessionKey: string,
   {

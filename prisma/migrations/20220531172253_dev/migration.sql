@@ -8,6 +8,7 @@ CREATE TYPE "Availability" AS ENUM ('AVAILABLE', 'UNAVAILABLE', 'PENDING');
 CREATE TABLE "User" (
     "id" TEXT NOT NULL,
     "email" TEXT NOT NULL,
+    "spotifyUserId" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -15,9 +16,13 @@ CREATE TABLE "User" (
 );
 
 -- CreateTable
-CREATE TABLE "Password" (
-    "hash" TEXT NOT NULL,
-    "userId" TEXT NOT NULL
+CREATE TABLE "Favorite" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Favorite_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -47,8 +52,28 @@ CREATE TABLE "YoutubeChannel" (
     "title" TEXT NOT NULL,
     "channelId" TEXT NOT NULL,
     "status" "Status" NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "lastViewedAt" TIMESTAMP(3) DEFAULT CURRENT_TIMESTAMP,
+    "isFavorite" BOOLEAN NOT NULL DEFAULT false,
+    "userId" TEXT NOT NULL,
+    "image" TEXT,
+    "totalVideos" INTEGER NOT NULL,
 
     CONSTRAINT "YoutubeChannel_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "TrackRating" (
+    "id" TEXT NOT NULL,
+    "rating" INTEGER NOT NULL,
+    "userId" TEXT NOT NULL,
+    "youtubeVideoId" TEXT,
+    "serviceTrackId" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "TrackRating_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -58,6 +83,7 @@ CREATE TABLE "YoutubeVideo" (
     "channelId" TEXT NOT NULL,
     "youtubeVideoId" TEXT NOT NULL,
     "availability" "Availability" NOT NULL,
+    "favoriteId" TEXT,
 
     CONSTRAINT "YoutubeVideo_pkey" PRIMARY KEY ("id")
 );
@@ -72,20 +98,10 @@ CREATE TABLE "SpotifyTrack" (
     "artists" JSONB,
     "name" TEXT NOT NULL,
     "trackUrl" TEXT,
-
-    CONSTRAINT "SpotifyTrack_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "Note" (
-    "id" TEXT NOT NULL,
-    "title" TEXT NOT NULL,
-    "body" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
-    "userId" TEXT NOT NULL,
 
-    CONSTRAINT "Note_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "SpotifyTrack_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -98,7 +114,13 @@ CREATE TABLE "_SpotifyTrackToYoutubeChannel" (
 CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Password_userId_key" ON "Password"("userId");
+CREATE UNIQUE INDEX "User_spotifyUserId_key" ON "User"("spotifyUserId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Favorite_userId_key" ON "Favorite"("userId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "YoutubePlaylist_playlistId_key" ON "YoutubePlaylist"("playlistId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "YoutubePlaylistPage_pageToken_key" ON "YoutubePlaylistPage"("pageToken");
@@ -119,16 +141,25 @@ CREATE UNIQUE INDEX "_SpotifyTrackToYoutubeChannel_AB_unique" ON "_SpotifyTrackT
 CREATE INDEX "_SpotifyTrackToYoutubeChannel_B_index" ON "_SpotifyTrackToYoutubeChannel"("B");
 
 -- AddForeignKey
-ALTER TABLE "Password" ADD CONSTRAINT "Password_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "Favorite" ADD CONSTRAINT "Favorite_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "YoutubePlaylistPage" ADD CONSTRAINT "YoutubePlaylistPage_youtubePlaylistId_fkey" FOREIGN KEY ("youtubePlaylistId") REFERENCES "YoutubePlaylist"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "SpotifyTrack" ADD CONSTRAINT "SpotifyTrack_youtubeVideoId_fkey" FOREIGN KEY ("youtubeVideoId") REFERENCES "YoutubeVideo"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "YoutubeChannel" ADD CONSTRAINT "YoutubeChannel_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Note" ADD CONSTRAINT "Note_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "TrackRating" ADD CONSTRAINT "TrackRating_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "TrackRating" ADD CONSTRAINT "TrackRating_youtubeVideoId_fkey" FOREIGN KEY ("youtubeVideoId") REFERENCES "YoutubeVideo"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "YoutubeVideo" ADD CONSTRAINT "YoutubeVideo_favoriteId_fkey" FOREIGN KEY ("favoriteId") REFERENCES "Favorite"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "SpotifyTrack" ADD CONSTRAINT "SpotifyTrack_youtubeVideoId_fkey" FOREIGN KEY ("youtubeVideoId") REFERENCES "YoutubeVideo"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "_SpotifyTrackToYoutubeChannel" ADD FOREIGN KEY ("A") REFERENCES "SpotifyTrack"("id") ON DELETE CASCADE ON UPDATE CASCADE;

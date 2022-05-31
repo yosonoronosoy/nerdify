@@ -22,9 +22,9 @@ export const loader: LoaderFunction = async ({ request }) => {
     throw redirect("/login");
   }
 
-  const userFromDB = await getUserByEmail(spotifySession.user.email);
+  let userFromDB = await getUserByEmail(spotifySession.user.email);
   if (!userFromDB) {
-    await createUser({
+    userFromDB = await createUser({
       email: spotifySession.user.email,
       spotifyUserId: spotifySession.user.id,
     });
@@ -35,8 +35,8 @@ export const loader: LoaderFunction = async ({ request }) => {
   );
   session.set(spotifyStrategy.sessionKey, {
     ...spotifySession,
-    tokenExpired: false,
   });
+  session.set("userIdFromDB", userFromDB.id);
 
   const headers = new Headers({
     "Set-Cookie": await sessionStorage.commitSession(session),

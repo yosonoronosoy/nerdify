@@ -15,7 +15,7 @@ export const youtubeChannelWithContentDetailsSchema = z.object({
   snippet: z.object({
     title: z.string(),
     description: z.string(),
-    customUrl: z.string(),
+    customUrl: z.string().optional(),
     publishedAt: z.string(),
     thumbnails: z
       .object({

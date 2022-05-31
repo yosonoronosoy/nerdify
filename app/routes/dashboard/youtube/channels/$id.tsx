@@ -31,10 +31,7 @@ import {
 import { createYoutubeVideo } from "~/models/youtube-video.server";
 import type { YoutubeVideo } from "~/models/youtube-video.server";
 import type { ActionFunction, LoaderFunction } from "@remix-run/server-runtime";
-import {
-  createYoutubeChannel,
-  getYoutubeChannel,
-} from "~/models/youtube-channel.server";
+import { upsertYoutubeChannel } from "~/models/youtube-channel.server";
 import { Spinner } from "~/icons/spinner";
 import Pagination from "~/components/pagination";
 import {
@@ -60,6 +57,10 @@ export const loader: LoaderFunction = async ({ params, request }) => {
     return null;
   }
 
+  const spotifySession = await getSpotifySession(request);
+  invariant(spotifySession?.user, "this should never happen");
+  const spotifyUserId = spotifySession.user.id;
+
   const pageNumber = getPageNumber(new URL(request.url).searchParams);
 
   const channelResponse = await queryYoutubeChannel({
@@ -68,13 +69,7 @@ export const loader: LoaderFunction = async ({ params, request }) => {
   });
 
   const channelId = channelResponse.items[0].id;
-  const youtubeChannelFromDB = await getYoutubeChannel({ channelId });
-  if (!youtubeChannelFromDB) {
-    await createYoutubeChannel({
-      title: channelResponse.items[0].snippet.title,
-      channelId,
-    });
-  }
+  const imageUrl = channelResponse.items[0].snippet.thumbnails.default?.url;
 
   const playlistId =
     channelResponse.items[0].contentDetails.relatedPlaylists.uploads;
@@ -104,6 +99,7 @@ export const loader: LoaderFunction = async ({ params, request }) => {
       "Cache-Control": "public, max-age=120",
     },
   };
+
   if (!alreadyVisited) {
     const alreadyVisitedHeaders = await setAlreadyVisitedSession({
       id: params.id,
@@ -130,10 +126,6 @@ export const loader: LoaderFunction = async ({ params, request }) => {
     });
   }
 
-  const spotifySession = await getSpotifySession(request);
-  invariant(spotifySession?.user, "this should never happen");
-
-  const spotifyUserId = spotifySession.user.id;
   const user = await getUserBySpotifyId(spotifyUserId);
   invariant(user, "this should never happen");
   const userId = user.id;
@@ -144,6 +136,14 @@ export const loader: LoaderFunction = async ({ params, request }) => {
     trackCountFromDB: playlistFromDB?.trackCount,
     pageNumber,
     youtubePlaylistIdFromDB: playlistFromDB.id,
+  });
+
+  await upsertYoutubeChannel({
+    title: channelResponse.items[0].snippet.title,
+    channelId,
+    spotifyUserId,
+    image: imageUrl,
+    totalVideos: extendedResponse.pageInfo.totalResults,
   });
 
   return json<ExtendedResponse>(extendedResponse, headers);

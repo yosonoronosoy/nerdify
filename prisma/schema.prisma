@@ -21,12 +21,23 @@ enum Availability {
 }
 
 model User {
-  id            String        @id @default(cuid())
-  email         String        @unique
-  spotifyUserId String        @unique
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
-  trackRating   TrackRating[]
+  id              String           @id @default(cuid())
+  email           String           @unique
+  spotifyUserId   String           @unique
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  trackRating     TrackRating[]
+  favorites       Favorite[]
+  youtubeChannels YoutubeChannel[]
+}
+
+model Favorite {
+  id            String         @id @default(cuid())
+  userId        String?        @unique
+  youtubeVideos YoutubeVideo[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  user          User?          @relation(fields: [userId], references: [id])
 }
 
 model YoutubePlaylist {
@@ -54,6 +65,12 @@ model YoutubeChannel {
   spotifyTracks SpotifyTrack[]
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
+  lastViewedAt  DateTime?      @default(now())
+  isFavorite    Boolean        @default(false)
+  user          User           @relation(fields: [userId], references: [id])
+  userId        String
+  image         String?
+  totalVideos   Int
 }
 
 model TrackRating {
@@ -76,6 +93,8 @@ model YoutubeVideo {
   spotifyTracks  SpotifyTrack[]
   availability   Availability
   trackRating    TrackRating[]
+  favorite       Favorite?      @relation(fields: [favoriteId], references: [id])
+  favoriteId     String?
 }
 
 model SpotifyTrack {
