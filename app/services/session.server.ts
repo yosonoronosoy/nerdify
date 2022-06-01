@@ -120,7 +120,7 @@ export async function createUserSession({
 
 const FIRST_VISITED_SESSION_KEY = "first-visited";
 type YoutubeService = "channel" | "playlist" | "video";
-type ServiceKey = `youtube-${YoutubeService}` | "spotify" | "nts" | "discogs";
+export type ServiceKey = `youtube-${YoutubeService}` | "spotify" | "nts" | "discogs";
 
 function getVisitedSessionKey({
   serviceKey,

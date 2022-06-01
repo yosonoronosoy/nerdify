@@ -12,6 +12,11 @@ import {
   addOneToAllPages,
   getYoutubePlaylistPageByPageToken,
 } from "~/models/youtube-playlist-page.server";
+import {
+  createYoutubePlaylist,
+  getYoutubePlaylistByPlaylistId,
+  updateYoutubePlaylistCount,
+} from "~/models/youtube-playlist.server";
 import { getYoutubeVideoByTitle } from "~/models/youtube-video.server";
 import { youtubeChannelListSchema } from "~/zod-schemas/youtube-channels-schema.server";
 import type { YoutubePlaylistItems } from "~/zod-schemas/youtube-playlist-schema.server";
@@ -23,6 +28,11 @@ import type {
 } from "~/zod-schemas/youtube-search-schema.server";
 import { youtubeSearchResponse } from "~/zod-schemas/youtube-search-schema.server";
 import { youtubeVideoPlayerResponseSchema } from "~/zod-schemas/youtube-video-player.server";
+import type { ServiceKey } from "./session.server";
+import {
+  getAlreadyVisitedSession,
+  setAlreadyVisitedSession,
+} from "./session.server";
 
 const baseUrl = "https://www.googleapis.com/youtube/v3";
 const channelUrl = `${baseUrl}/channels`;
@@ -353,4 +363,84 @@ export async function getYoutubeVideoPlayer(id: string) {
   });
   const res = await fetch(`${videosUrl}?${params}`).then((res) => res.json());
   return youtubeVideoPlayerResponseSchema.parse(res);
+}
+
+export async function getPlaylistData({
+  playlistId,
+  title,
+  resourceId,
+  serviceKey,
+  request,
+  pageNumber,
+  userIdFromDB,
+}: {
+  playlistId: string;
+  title: string;
+  resourceId: string;
+  serviceKey: ServiceKey;
+  request: Request;
+  pageNumber: number;
+  userIdFromDB: string;
+}) {
+  let playlistFromDB = await getYoutubePlaylistByPlaylistId(playlistId);
+
+  if (!playlistFromDB) {
+    playlistFromDB = await createYoutubePlaylist({
+      title,
+      playlistId,
+      trackCount: 0,
+    });
+  }
+
+  const alreadyVisited = await getAlreadyVisitedSession({
+    id: resourceId,
+    request,
+    serviceKey,
+  });
+
+  let headers: {
+    headers: {
+      [key: string]: string;
+    };
+  } = {
+    headers: {
+      "Cache-Control": "public, max-age=120",
+    },
+  };
+
+  if (!alreadyVisited) {
+    const alreadyVisitedHeaders = await setAlreadyVisitedSession({
+      id: resourceId,
+      request,
+      serviceKey: "youtube-channel",
+    });
+
+    headers = {
+      headers: {
+        ...alreadyVisitedHeaders.headers,
+      },
+    };
+
+    const res = await queryPlaylistItemFromPageRange({
+      playlistId,
+      from: 1,
+      to: 5,
+      youtubePlaylistIdFromDB: playlistFromDB.id,
+    });
+
+    await updateYoutubePlaylistCount({
+      id: playlistFromDB.id,
+      trackCount: res.pageInfo.totalResults,
+    });
+  }
+
+  const extendedResponse = await getPlaylistResponse({
+    userId: userIdFromDB,
+    playlistId,
+    trackCountFromDB: playlistFromDB?.trackCount,
+    pageNumber,
+    youtubePlaylistIdFromDB: playlistFromDB.id,
+  });
+
+  return { extendedResponse, headers };
 }

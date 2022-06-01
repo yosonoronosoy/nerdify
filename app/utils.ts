@@ -73,3 +73,8 @@ export function validateEmail(email: unknown): email is string {
 export function classNames(...args: (string | undefined)[]) {
   return args.filter(Boolean).join(" ");
 }
+
+export function capitalize(str: string) {
+  const lowerCasedString = str.toLowerCase();
+  return lowerCasedString.charAt(0).toUpperCase() + lowerCasedString.slice(1);
+}

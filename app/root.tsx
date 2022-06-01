@@ -66,6 +66,10 @@ export const loader: LoaderFunction = async ({ request }) => {
   return spotifySession;
 };
 
+/*
+ * TODO: refactor components
+ * TODO: add silent authentication: https://github.com/kentcdodds/advanced-remix/blob/main/final/06-imperative-mutations/app/root.tsx
+ * */
 export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const data = useLoaderData<Session | null | undefined>();

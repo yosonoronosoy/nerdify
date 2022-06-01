@@ -7,11 +7,11 @@ const thumnbailSchema = z.object({
 });
 
 export const youtubePlaylistItemSchema = z.object({
-  kind: z.literal("youtube#playlistItem"),
-  etag: z.string(),
+  // kind: z.literal("youtube#playlistItem"),
+  // etag: z.string(),
   id: z.string(),
   snippet: z.object({
-    publishedAt: z.string(),
+    // publishedAt: z.string(),
     channelId: z.string(),
     title: z.string(),
     description: z.string(),
@@ -26,19 +26,19 @@ export const youtubePlaylistItemSchema = z.object({
       .partial(),
     channelTitle: z.string(),
     playlistId: z.string(),
-    position: z.number(),
+    // position: z.number(),
     resourceId: z.object({
       kind: z.string(),
       videoId: z.string(),
     }),
-    videoOwnerChannelTitle: z.string(),
-    videoOwnerChannelId: z.string(),
+    // videoOwnerChannelTitle: z.string(),
+    // videoOwnerChannelId: z.string(),
   }),
 });
 
 export const youtubePlaylistItemsSchema = z.object({
-  kind: z.literal("youtube#playlistItemListResponse"),
-  etag: z.string(),
+  // kind: z.literal("youtube#playlistItemListResponse"),
+  // etag: z.string(),
   nextPageToken: z.string().optional(),
   prevPageToken: z.string().optional(),
   pageInfo: z.object({

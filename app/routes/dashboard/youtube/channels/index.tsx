@@ -7,10 +7,11 @@ import type { LoaderFunction } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { getYoutubeChannelsByUserId } from "~/models/youtube-channel.server";
 import { getUserIdFromSession } from "~/services/session.server";
-import { classNames } from "~/utils";
+import { capitalize, classNames } from "~/utils";
 import type { YoutubeChannel } from "~/models/youtube-channel.server";
-import { useLoaderData } from "@remix-run/react";
+import { Link, useLoaderData } from "@remix-run/react";
 import { useState } from "react";
+import { formatDistance } from "date-fns";
 
 type Tab = typeof tabs[number];
 const tabs = [
@@ -195,7 +196,7 @@ function Gallery({
               {channel.title}
             </p>
             <p className="pointer-events-none block text-sm font-medium text-gray-500">
-              {channel.status.toLowerCase()}
+              {capitalize(channel.status.toLowerCase())}
             </p>
           </li>
         ))}
@@ -212,6 +213,7 @@ function DetailsSidebar({
   if (!currentChannel) {
     return null;
   }
+
   const {
     id,
     userId,
@@ -220,9 +222,27 @@ function DetailsSidebar({
     isFavorite,
     updatedAt,
     status,
+    channelId,
     ...channel
   } = currentChannel;
   const spotifyTrackCount = currentChannel._count.spotifyTracks;
+
+  const formattedChannel = {
+    Title: channel.title,
+    Status: capitalize(status),
+    "Last Time Viewed": formatDistance(
+      new Date(),
+      new Date(channel.lastViewedAt ?? new Date()),
+      { addSuffix: true }
+    ),
+    "Tracks Processed So Far": spotifyTrackCount,
+    "Total Videos": channel.totalVideos,
+  };
+
+  const processPercentage =
+    channel.totalVideos === 0
+      ? 0
+      : Math.round(spotifyTrackCount / channel.totalVideos);
 
   // TODO: format dates and keys
   return (
@@ -238,13 +258,30 @@ function DetailsSidebar({
           </div>
           <div className="mt-4 flex items-start justify-between">
             <div>
-              <h2 className="text-lg font-medium text-gray-900">
+              <h2 className="mb-2 text-lg font-medium text-gray-900">
                 <span className="sr-only">Details for </span>
                 {currentChannel.title}
               </h2>
-              <p className="text-sm font-medium text-gray-500">
-                {currentChannel.status}
-              </p>
+              <div className="text-sm font-medium text-gray-500">
+                <div className="h-1 w-full bg-gray-200">
+                  <div
+                    className={classNames(
+                      "h-1 bg-green-500",
+                      processPercentage < 25
+                        ? "bg-red-500"
+                        : processPercentage < 75
+                        ? "bg-yellow-300"
+                        : processPercentage < 99
+                        ? "bg-orange-500"
+                        : "bg-green-500"
+                    )}
+                    style={{ width: `${processPercentage}%` }}
+                  />
+                </div>
+                <span className="mb-6">
+                  {`${processPercentage}%`} processed
+                </span>
+              </div>
             </div>
             <button
               type="button"
@@ -258,23 +295,13 @@ function DetailsSidebar({
         <div>
           <h3 className="font-medium text-gray-900">Information</h3>
           <dl className="mt-2 divide-y divide-gray-200 border-t border-b border-gray-200">
-            {Object.entries(channel).map(([key, v]) => {
-              const value =
-                key === "_count"
-                  ? spotifyTrackCount
-                  : key === "lastViewedAt"
-                  ? v.toLocaleString()
-                  : v;
-
-              console.log({ key, value });
+            {Object.entries(formattedChannel).map(([key, value]) => {
               return (
                 <div
                   key={key}
                   className="flex justify-between py-3 text-sm font-medium"
                 >
-                  <dt className="text-gray-500">
-                    {key === "_count" ? "Spotify Tracks Processed" : key}
-                  </dt>
+                  <dt className="text-gray-500">{key}</dt>
                   <dd className="text-gray-900">{value}</dd>
                 </div>
               );
@@ -296,60 +323,14 @@ function DetailsSidebar({
             </button>
           </div>
         </div>
-        <div>
-          <h3 className="font-medium text-gray-900">Shared with</h3>
-          {/* <ul className="mt-2 divide-y divide-gray-200 border-t border-b border-gray-200"> */}
-          {/*   {currentChannel.sharedWith.map((person) => ( */}
-          {/*     <li */}
-          {/*       key={person.id} */}
-          {/*       className="flex items-center justify-between py-3" */}
-          {/*     > */}
-          {/*       <div className="flex items-center"> */}
-          {/*         <img */}
-          {/*           src={person.imageUrl} */}
-          {/*           alt="" */}
-          {/*           className="h-8 w-8 rounded-full" */}
-          {/*         /> */}
-          {/*         <p className="ml-4 text-sm font-medium text-gray-900"> */}
-          {/*           {person.name} */}
-          {/*         </p> */}
-          {/*       </div> */}
-          {/*       <button */}
-          {/*         type="button" */}
-          {/*         className="ml-6 rounded-md bg-white text-sm font-medium text-indigo-600 hover:text-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2" */}
-          {/*       > */}
-          {/*         Remove<span className="sr-only"> {person.name}</span> */}
-          {/*       </button> */}
-          {/*     </li> */}
-          {/*   ))} */}
-          {/*   <li className="flex items-center justify-between py-2"> */}
-          {/*     <button */}
-          {/*       type="button" */}
-          {/*       className="group -ml-1 flex items-center rounded-md bg-white p-1 focus:outline-none focus:ring-2 focus:ring-indigo-500" */}
-          {/*     > */}
-          {/*       <span className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-dashed border-gray-300 text-gray-400"> */}
-          {/*         <PlusSmIconSolid className="h-5 w-5" aria-hidden="true" /> */}
-          {/*       </span> */}
-          {/*       <span className="ml-4 text-sm font-medium text-indigo-600 group-hover:text-indigo-500"> */}
-          {/*         Share */}
-          {/*       </span> */}
-          {/*     </button> */}
-          {/*   </li> */}
-          {/* </ul> */}
-        </div>
+
         <div className="flex">
-          <button
-            type="button"
-            className="flex-1 rounded-md border border-transparent bg-indigo-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+          <Link
+            to={channelId}
+            className="flex-1 rounded-md border border-transparent bg-indigo-600 py-2 px-4 text-center text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
           >
             Go to channel
-          </button>
-          {/* <button */}
-          {/*   type="button" */}
-          {/*   className="ml-3 flex-1 rounded-md border border-gray-300 bg-white py-2 px-4 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2" */}
-          {/* > */}
-          {/*   Delete */}
-          {/* </button> */}
+          </Link>
         </div>
       </div>
     </aside>

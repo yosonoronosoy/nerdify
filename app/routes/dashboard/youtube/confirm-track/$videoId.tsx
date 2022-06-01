@@ -3,6 +3,7 @@ import { ClockIcon } from "@heroicons/react/outline";
 import {
   Form,
   useLoaderData,
+  useLocation,
   useParams,
   useSearchParams,
 } from "@remix-run/react";
@@ -24,30 +25,27 @@ type LoaderData = Awaited<ReturnType<typeof getYoutubeVideoByVideoId>>;
 export const loader: LoaderFunction = async ({ params, request }) => {
   const videoId = params.videoId;
   invariant(videoId, "videoId is required");
-  console.log({videoId})
 
   const video = await getYoutubeVideoByVideoId({ youtubeVideoId: videoId });
-  console.log({video})
 
   return json<LoaderData>(video);
 };
 
 export const action: ActionFunction = async ({ request, params }) => {
-  const id = params.id;
   const youtubeVideoId = params.videoId;
 
-  invariant(id, "id is required");
   invariant(youtubeVideoId, "videoId is required");
 
   const formData = await request.formData();
   const {
     _action,
     page: pageText,
+    prevUrl,
     ...dataEntries
   } = Object.fromEntries(formData);
   const page = Number(pageText);
-  console.log({ page });
 
+  invariant(typeof prevUrl === "string", "prevUrl is required");
   invariant(!Number.isNaN(page), "page must be a number");
 
   if (_action === "set-unavailable") {
@@ -55,7 +53,7 @@ export const action: ActionFunction = async ({ request, params }) => {
       youtubeVideoId,
     });
 
-    return redirect(`/dashboard/youtube/channels/${id}?page=${page}`, {
+    return redirect(`${prevUrl}?page=${page}`, {
       status: 301,
     });
   }
@@ -64,12 +62,13 @@ export const action: ActionFunction = async ({ request, params }) => {
     const spotifyTrackId = dataEntries["_track[trackId]"]?.toString();
     invariant(spotifyTrackId, "trackId is required");
 
+    //FIX: ADD TRACK TO RESOURCE (CHANNEL OR PLAYLIST TO TRACK) IN DB
     await makeSpotifyTrackAvailableFromYoutubeVideo({
       spotifyTrackId,
       youtubeVideoId,
     });
 
-    return redirect(`/dashboard/youtube/channels/${id}?page=${page}`);
+    return redirect(`${prevUrl}?page=${page}`);
   }
 
   return null;
@@ -79,10 +78,23 @@ function classNames(...args: string[]) {
   return args.filter(Boolean).join(" ");
 }
 
+type State = { prevUrl: string };
+function isState(state: unknown): state is State {
+  if (typeof state === "object" && state !== null) {
+    return "prevUrl" in state;
+  }
+
+  return false;
+}
+
 export default function ConfirmTrackModal() {
   const data = useLoaderData<LoaderData>();
-  const { id: channelId } = useParams();
+  const { state } = useLocation();
+
+  const prev = isState(state) ? state.prevUrl : "";
+
   const [searchParams] = useSearchParams();
+  const page = searchParams.get("page") ?? "1";
 
   const [selected, setSelected] = useState();
   const [filterQuery, setFilterQuery] = useState("");
@@ -105,7 +117,7 @@ export default function ConfirmTrackModal() {
     setFilteredTracks(filtered);
   }, [filterQuery, spotifyTracks]);
 
-  const prevUrl = `/dashboard/youtube/channels/${channelId}?${searchParams}`;
+  const prevUrl = `${prev}?page=${page}`;
   const isConfirm = Boolean(selected);
 
   return (
@@ -118,6 +130,7 @@ export default function ConfirmTrackModal() {
       <Search className="absolute right-0 top-24 w-56">
         <Search.Input
           placeholder="Filter tracks"
+          defaultValue={filterQuery}
           onChange={(e) => setFilterQuery(e.target.value)}
           className="rounded-md"
         />
@@ -141,6 +154,7 @@ export default function ConfirmTrackModal() {
         <div className="mt-2">
           {filteredTracks.length > 0 ? (
             <Form reloadDocument method="post" id="confirm-track-form">
+              <input name="prevUrl" type="hidden" value={prevUrl} />
               <input
                 hidden
                 name="_action"
