@@ -244,7 +244,8 @@ function DetailsSidebar({
       ? 0
       : Math.round(spotifyTrackCount / channel.totalVideos);
 
-  // TODO: format dates and keys
+  //TODO: ADD VIDEOS PROCESSED
+  // FIX: CHANGE TRACKS PROCESSED TO SPOTIFY TRACKS FOUND
   return (
     <aside className="hidden w-96 overflow-y-auto border-l border-gray-200 bg-white p-8 lg:block">
       <div className="space-y-6 pb-16">

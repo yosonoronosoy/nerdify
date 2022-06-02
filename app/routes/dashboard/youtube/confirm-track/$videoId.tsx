@@ -4,7 +4,6 @@ import {
   Form,
   useLoaderData,
   useLocation,
-  useParams,
   useSearchParams,
 } from "@remix-run/react";
 import type { ActionFunction, LoaderFunction } from "@remix-run/server-runtime";
@@ -41,19 +40,26 @@ export const action: ActionFunction = async ({ request, params }) => {
     _action,
     page: pageText,
     prevUrl,
+    resourceId,
+    resourceType,
     ...dataEntries
   } = Object.fromEntries(formData);
   const page = Number(pageText);
+  console.log({ resourceId, resourceType });
 
   invariant(typeof prevUrl === "string", "prevUrl is required");
+  invariant(typeof resourceId === "string", "resourceId is required");
+  invariant(typeof resourceType === "string", "resourceType is required");
   invariant(!Number.isNaN(page), "page must be a number");
 
   if (_action === "set-unavailable") {
+    // FIX: need to generalize this: considering using resourceType
     await makeSpotifyTrackUnavailableFromYoutubeVideo({
       youtubeVideoId,
+      channelId: resourceId,
     });
 
-    return redirect(`${prevUrl}?page=${page}`, {
+    return redirect(`${prevUrl}`, {
       status: 301,
     });
   }
@@ -62,13 +68,14 @@ export const action: ActionFunction = async ({ request, params }) => {
     const spotifyTrackId = dataEntries["_track[trackId]"]?.toString();
     invariant(spotifyTrackId, "trackId is required");
 
-    //FIX: ADD TRACK TO RESOURCE (CHANNEL OR PLAYLIST TO TRACK) IN DB
+    // FIX: need to generalize this: considering using resourceType
     await makeSpotifyTrackAvailableFromYoutubeVideo({
       spotifyTrackId,
       youtubeVideoId,
+      channelId: resourceId,
     });
 
-    return redirect(`${prevUrl}?page=${page}`);
+    return redirect(`${prevUrl}`);
   }
 
   return null;
@@ -78,10 +85,12 @@ function classNames(...args: string[]) {
   return args.filter(Boolean).join(" ");
 }
 
-type State = { prevUrl: string };
+type State = { prevUrl: string; resourceId: string; resourceType: string };
 function isState(state: unknown): state is State {
   if (typeof state === "object" && state !== null) {
-    return "prevUrl" in state;
+    return (
+      "prevUrl" in state && "resourceId" in state && "resourceType" in state
+    );
   }
 
   return false;
@@ -92,6 +101,8 @@ export default function ConfirmTrackModal() {
   const { state } = useLocation();
 
   const prev = isState(state) ? state.prevUrl : "";
+  const resourceId = isState(state) ? state.resourceId : "";
+  const resourceType = isState(state) ? state.resourceType : "";
 
   const [searchParams] = useSearchParams();
   const page = searchParams.get("page") ?? "1";
@@ -155,6 +166,8 @@ export default function ConfirmTrackModal() {
           {filteredTracks.length > 0 ? (
             <Form reloadDocument method="post" id="confirm-track-form">
               <input name="prevUrl" type="hidden" value={prevUrl} />
+              <input name="resourceId" type="hidden" value={resourceId} />
+              <input name="resourceType" type="hidden" value={resourceType} />
               <input
                 hidden
                 name="_action"

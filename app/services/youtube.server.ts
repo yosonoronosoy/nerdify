@@ -267,6 +267,7 @@ export type ExtendedResponse =
   YoutubeResponseWithSpotifyAvailabilityAndTrackRating & {
     nextPageToken: string | null;
     totalItems: number;
+    playlistId: string;
   };
 
 export async function getPlaylistResponse({

@@ -27,12 +27,17 @@ const getPageNumber = (searchParams: URLSearchParams) =>
 
 // FIX: fix tracks types
 // FIX: consider leaving Row as a children prop
+type Resource = { resourceId: string; resourceType: string };
 export default function TracksTable({
   tracks,
   totalItems,
+  playlistId,
+  resource,
 }: {
   tracks: ExtendedResponse["items"];
   totalItems?: number;
+  playlistId?: string;
+  resource: Resource;
 }) {
   const [searchParams] = useSearchParams();
 
@@ -80,26 +85,25 @@ export default function TracksTable({
         <div className="-my-2 -mx-4 overflow-x-auto sm:-mx-6 lg:-mx-8">
           <div className="inline-block min-w-full py-2 align-middle md:px-6 lg:px-8">
             <div className="relative overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
-              {selectedTracks.length > 0 && (
-                <div className="absolute top-2.5 left-12 z-20 flex h-12 items-center space-x-3 bg-gray-50 sm:left-16">
-                  {/* FIX: ABSOLUTE POSITION WRONG */}
-                  <button
-                    className="inline-flex items-center rounded border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-30"
-                    form="bulk-process-form"
-                    disabled={transition.state === "submitting"}
-                  >
-                    Check Spotify Availability
-                  </button>
-                </div>
-              )}
               <Form
                 className="h-[800px] overflow-y-auto"
                 method="post"
                 id="bulk-process-form"
                 action={`?${searchParams}`}
               >
+                <input type="hidden" name="playlistId" value={playlistId} />
                 <table className="relative min-w-full table-fixed divide-y divide-gray-300 ">
                   <thead className="sticky top-0 z-10  bg-gray-50">
+                    {selectedTracks.length > 0 && (
+                      <div className="absolute top-0 z-20 flex h-[98%] items-center space-x-3 bg-gray-50 sm:left-16">
+                        <button
+                          className="mx-2 inline-flex items-center rounded border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-30"
+                          disabled={transition.state === "submitting"}
+                        >
+                          Check Spotify Availability
+                        </button>
+                      </div>
+                    )}
                     <tr>
                       <th
                         scope="col"
@@ -145,6 +149,7 @@ export default function TracksTable({
                         key={track.id}
                         track={track}
                         isSelected={selectedTracks.includes(track)}
+                        resource={resource}
                         onCheckboxChange={(e) =>
                           setSelectedTracks(
                             e.target.checked
@@ -176,11 +181,14 @@ function Row({
   track,
   isSelected,
   onCheckboxChange,
+  // WARNING: is this prop drilling?
+  resource,
 }: {
   track: ExtendedResponse["items"][number];
   isSelected: boolean;
   onCheckboxChange: React.ChangeEventHandler<HTMLInputElement> | undefined;
   currentPage?: number;
+  resource: Resource;
 }) {
   const transition = useTransition();
   const location = useLocation();
@@ -231,10 +239,8 @@ function Row({
         {(transition.state === "submitting" ||
           transition.type === "loaderSubmissionRedirect") &&
         isSelected ? (
-          <div>
-            <div className="mx-auto">
-              <Spinner />
-            </div>
+          <div className="flex justify-center">
+            <Spinner />
           </div>
         ) : (
           <div>
@@ -244,6 +250,8 @@ function Row({
               <Link
                 state={{
                   prevUrl: location.pathname,
+                  resourceId: resource.resourceId,
+                  resourceType: resource.resourceType,
                 }}
                 to={`/dashboard/youtube/confirm-track/${track.snippet.resourceId.videoId}?${searchParams}`}
               >

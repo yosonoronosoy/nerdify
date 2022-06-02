@@ -73,7 +73,10 @@ export async function getYoutubeVideoByTitle({
   return getVideo(video);
 }
 
-type YoutubeVideoWithoutId = Omit<YoutubeVideo, "id" | "favoriteId">;
+type YoutubeVideoWithoutId = Omit<
+  YoutubeVideo,
+  "id" | "favoriteId" | "youtubeChannelId"
+>;
 
 type SpotifyTrackWithPartialId = Omit<
   SpotifyTrack,
@@ -84,7 +87,7 @@ type SpotifyTrackWithPartialId = Omit<
 
 type SpotifyTrackInput = Omit<
   SpotifyTrackWithPartialId,
-  "images" | "artists"
+  "images" | "artists" | "availability"
 > & {
   images?: SpotifyImageResponse[];
   artists?: SpotifyArtistResponse[];
@@ -99,14 +102,25 @@ export async function createYoutubeVideo({
   channelId,
   youtubeVideoId,
   spotifyTracks,
-}: CreateYoutubeVideoInput) {
+  playlistId,
+}: CreateYoutubeVideoInput & { playlistId?: string }) {
   if (spotifyTracks && spotifyTracks.length > 0) {
     const youtubeVideo = await prisma.youtubeVideo.create({
       data: {
         title,
         channelId,
-        youtubeVideoId,
         availability: "PENDING",
+        youtubeVideoId,
+        youtubeChannel: {
+          connect: {
+            channelId,
+          },
+        },
+        youtubePlaylists: {
+          connect: {
+            playlistId,
+          },
+        },
       },
     });
 
@@ -169,9 +183,11 @@ export async function addSpotifyTracksToYoutubeVideo({
 export async function makeSpotifyTrackAvailableFromYoutubeVideo({
   youtubeVideoId,
   spotifyTrackId,
+  channelId,
 }: {
   youtubeVideoId: string;
   spotifyTrackId: string;
+  channelId: string;
 }) {
   return prisma.youtubeVideo.update({
     where: {
@@ -182,6 +198,24 @@ export async function makeSpotifyTrackAvailableFromYoutubeVideo({
         deleteMany: {
           NOT: { trackId: spotifyTrackId },
         },
+        update: {
+          where: { trackId: spotifyTrackId },
+          data: {
+            youtubeChannels: {
+              connect: {
+                channelId,
+              },
+            },
+          },
+        },
+      },
+      youtubeChannel: {
+        update: {
+          status: "PROCESSING",
+        },
+        connect: {
+          channelId,
+        },
       },
       availability: "AVAILABLE",
     },
@@ -190,14 +224,24 @@ export async function makeSpotifyTrackAvailableFromYoutubeVideo({
 
 export function makeSpotifyTrackUnavailableFromYoutubeVideo({
   youtubeVideoId,
+  channelId,
 }: {
   youtubeVideoId: string;
+  channelId: string;
 }) {
   return prisma.youtubeVideo.update({
     where: { youtubeVideoId },
     data: {
       spotifyTracks: {
         deleteMany: {},
+      },
+      youtubeChannel: {
+        update: {
+          status: "PROCESSING",
+        },
+        connect: {
+          channelId,
+        },
       },
       availability: "UNAVAILABLE",
     },
