@@ -19,6 +19,8 @@ import invariant from "tiny-invariant";
 
 type LoaderData = (ExtendedResponse & { channelId: string }) | null;
 
+const levenPromise = import("leven");
+
 const getPageNumber = (searchParams: URLSearchParams) =>
   Number(searchParams.get("page") ?? "1");
 
@@ -66,6 +68,7 @@ export const loader: LoaderFunction = async ({ params, request }) => {
 };
 
 export const action: ActionFunction = async ({ request, params }) => {
+  const leven = (await levenPromise).default;
   const spotifySession = await spotifyStrategy.getSession(request);
 
   const channelId = params.id;
@@ -123,8 +126,9 @@ export const action: ActionFunction = async ({ request, params }) => {
     }
 
     invariant(typeof playlistId === "string", "playlistId is required");
+    const title = searchQuery.toString();
     return createYoutubeVideo({
-      title: searchQuery.toString(),
+      title,
       channelId,
       youtubeVideoId: videoId,
       availability: "PENDING",
@@ -136,6 +140,12 @@ export const action: ActionFunction = async ({ request, params }) => {
         trackUrl: item.external_urls.spotify,
         artists: item.artists,
         images: item.album.images,
+        levenshteinScore: leven(
+          title,
+          `${item.artists.map((artist) => artist.name).join(", ")} - ${
+            item.name
+          }`
+        ),
       })),
     });
   };

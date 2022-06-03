@@ -46,7 +46,11 @@ export async function getYoutubeVideoByVideoId({
   const video = await prisma.youtubeVideo.findFirst({
     where: { youtubeVideoId },
     include: {
-      spotifyTracks: true,
+      spotifyTracks: {
+        orderBy: {
+          levenshteinScore: "asc",
+        },
+      },
       trackRating: {
         where: { userId },
       },
@@ -63,7 +67,11 @@ export async function getYoutubeVideoByTitle({
   const video = await prisma.youtubeVideo.findFirst({
     where: { title },
     include: {
-      spotifyTracks: true,
+      spotifyTracks: {
+        orderBy: {
+          levenshteinScore: "asc",
+        },
+      },
       trackRating: {
         where: { userId },
       },

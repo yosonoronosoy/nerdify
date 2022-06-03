@@ -260,6 +260,7 @@ type YoutubeResponseWithSpotifyAvailabilityAndTrackRating = Omit<
   items: (YoutubePlaylistItems["items"][number] & {
     spotifyAvailability: SpotifyAvailability;
     trackRating?: TrackRating;
+    closeMatchPercentage: number | null;
   })[];
 };
 
@@ -335,10 +336,20 @@ export async function getPlaylistResponse({
         trackRating =
           track.trackRating.length > 0 ? track.trackRating[0] : undefined;
       }
+      let percentage: number | null = null;
+      if (track?.availability === "PENDING") {
+        const titleLength = item.snippet.title.length;
+        percentage =
+          100 -
+          (track.spotifyTracks[0].levenshteinScore ??
+            titleLength / titleLength) *
+            100;
+      }
 
       return {
         ...item,
         spotifyAvailability,
+        closeMatchPercentage: percentage,
         trackRating,
       };
     })
