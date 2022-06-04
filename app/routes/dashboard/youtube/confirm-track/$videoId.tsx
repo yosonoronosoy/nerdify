@@ -19,9 +19,10 @@ import {
   makeSpotifyTrackUnavailableFromYoutubeVideo,
 } from "~/models/youtube-video.server";
 
-type LoaderData = Awaited<ReturnType<typeof getYoutubeVideoByVideoId>>;
+// FIX: LEAVE THIS AS A RESOURCE ROUTE
 
-export const loader: LoaderFunction = async ({ params, request }) => {
+type LoaderData = Awaited<ReturnType<typeof getYoutubeVideoByVideoId>>;
+export const loader: LoaderFunction = async ({ params }) => {
   const videoId = params.videoId;
   invariant(videoId, "videoId is required");
 

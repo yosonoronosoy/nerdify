@@ -261,6 +261,8 @@ type YoutubeResponseWithSpotifyAvailabilityAndTrackRating = Omit<
     spotifyAvailability: SpotifyAvailability;
     trackRating?: TrackRating;
     closeMatchPercentage: number | null;
+    closeMatchSpotifyTitle: string | null;
+    closeMatchSpotifyTrackId: string | null;
   })[];
 };
 
@@ -339,16 +341,27 @@ export async function getPlaylistResponse({
       let percentage: number | null = null;
       if (track?.availability === "PENDING") {
         const titleLength = item.snippet.title.length;
-        percentage =
-          100 -
-          (track.spotifyTracks[0].levenshteinScore ??
-            titleLength / titleLength) *
-            100;
+
+        const leven = track.spotifyTracks[0].levenshteinScore ?? titleLength;
+        percentage = 100 - (leven / titleLength) * 100;
       }
+
+      const isTrack = track && track.spotifyTracks[0];
+      const closeMatchSpotifyTitle = isTrack
+        ? `${track.spotifyTracks[0].artists.map((a) => a.name).join(", ")} - ${
+            track.spotifyTracks[0].name
+          }`
+        : null;
+
+      const closeMatchSpotifyTrackId = isTrack
+        ? track.spotifyTracks[0].trackId
+        : null;
 
       return {
         ...item,
         spotifyAvailability,
+        closeMatchSpotifyTitle,
+        closeMatchSpotifyTrackId,
         closeMatchPercentage: percentage,
         trackRating,
       };

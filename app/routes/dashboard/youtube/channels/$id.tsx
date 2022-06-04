@@ -9,7 +9,11 @@ import type { ExtendedResponse } from "~/services/youtube.server";
 import { getPlaylistData } from "~/services/youtube.server";
 import { queryYoutubeChannel } from "~/services/youtube.server";
 
-import { createYoutubeVideo } from "~/models/youtube-video.server";
+import {
+  createYoutubeVideo,
+  makeSpotifyTrackAvailableFromYoutubeVideo,
+  makeSpotifyTrackUnavailableFromYoutubeVideo,
+} from "~/models/youtube-video.server";
 import type { YoutubeVideo } from "~/models/youtube-video.server";
 import type { ActionFunction, LoaderFunction } from "@remix-run/server-runtime";
 import { upsertYoutubeChannel } from "~/models/youtube-channel.server";
@@ -82,7 +86,33 @@ export const action: ActionFunction = async ({ request, params }) => {
   }
 
   const formData = await request.formData();
-  const { _action, playlistId, ...dataEntries } = Object.fromEntries(formData);
+  const {
+    _action,
+    playlistId,
+    makeAvailable,
+    makeUnavailable,
+    ...dataEntries
+  } = Object.fromEntries(formData);
+
+  // TODO: maybe change this to a switch statement with intents
+  if (typeof makeAvailable === "string") {
+    const [youtubeVideoId, spotifyTrackId] = makeAvailable.split(":");
+    await makeSpotifyTrackAvailableFromYoutubeVideo({
+      channelId,
+      youtubeVideoId,
+      spotifyTrackId,
+    });
+    return null;
+  }
+
+  if (typeof makeUnavailable === "string") {
+    const [youtubeVideoId] = makeUnavailable.split(":");
+    await makeSpotifyTrackUnavailableFromYoutubeVideo({
+      channelId,
+      youtubeVideoId,
+    });
+    return null;
+  }
 
   if (_action === "refreshToken") {
     return setSessionWithNewAccessToken({ request, spotifySession });

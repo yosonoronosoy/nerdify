@@ -78,3 +78,10 @@ export function capitalize(str: string) {
   const lowerCasedString = str.toLowerCase();
   return lowerCasedString.charAt(0).toUpperCase() + lowerCasedString.slice(1);
 }
+
+// format decimals with 2 decimal places
+export function formatPercentage(percentage: number, decimalPlaces?: number) {
+  return !decimalPlaces
+    ? Math.round(percentage)
+    : percentage.toFixed(decimalPlaces);
+}

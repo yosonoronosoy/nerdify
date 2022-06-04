@@ -1,9 +1,7 @@
 import { Popover, Transition } from "@headlessui/react";
 import {
   CheckIcon,
-  ChevronDownIcon,
   ClockIcon,
-  ExclamationIcon,
   MinusIcon,
   XIcon,
 } from "@heroicons/react/outline";
@@ -16,11 +14,13 @@ import {
   useSearchParams,
   useTransition,
 } from "@remix-run/react";
-import { Fragment, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { Fragment, useLayoutEffect, useRef, useState } from "react";
 import { Spinner } from "~/icons/spinner";
 import type { ExtendedResponse } from "~/services/youtube.server";
-import { classNames } from "~/utils";
+import { classNames, formatPercentage } from "~/utils";
+import { PrimaryButton, SecondaryButton } from "./buttons";
 import Pagination from "./pagination";
+import { ProgressBar } from "./progress-bar";
 
 const isServerRender = typeof document === "undefined";
 const useSSRLayoutEffect = isServerRender ? () => {} : useLayoutEffect;
@@ -147,12 +147,13 @@ export default function TracksTable({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200 bg-white">
-                    {tracks.map((track) => (
+                    {tracks.map((track, idx) => (
                       <Row
                         key={track.id}
                         track={track}
                         isSelected={selectedTracks.includes(track)}
                         resource={resource}
+                        isLast={idx > tracks.length - 3}
                         onCheckboxChange={(e) =>
                           setSelectedTracks(
                             e.target.checked
@@ -186,12 +187,14 @@ function Row({
   onCheckboxChange,
   // WARNING: is this prop drilling?
   resource,
+  isLast = false,
 }: {
   track: ExtendedResponse["items"][number];
   isSelected: boolean;
   onCheckboxChange: React.ChangeEventHandler<HTMLInputElement> | undefined;
-  currentPage?: number;
   resource: Resource;
+  currentPage?: number;
+  isLast?: boolean;
 }) {
   const transition = useTransition();
   const location = useLocation();
@@ -251,33 +254,65 @@ function Row({
             {track.spotifyAvailability.kind === "UNCHECKED" ? (
               <MinusIcon className="mx-auto block h-4 w-4" />
             ) : track.spotifyAvailability.kind === "PENDING" ? (
-              /* 
-}
-              <Link
-                state={{
-                  prevUrl: location.pathname,
-                  resourceId: resource.resourceId,
-                  resourceType: resource.resourceType,
-                }}
-                to={`/dashboard/youtube/confirm-track/${track.snippet.resourceId.videoId}?${searchParams}`}
-              >
-
-              </Link>
-                <ClockIcon
-                  className="mx-auto block h-4 w-4 text-yellow-500"
-                />
-*/
-              <div className="relative border border-green-300">
+              <div className="relative">
                 <Tooltip>
-                  <div className="rounded-lg shadow-lg ring-1 ring-black ring-opacity-5">
-                    <div className="relative grid gap-8 bg-white p-7 lg:grid-cols-2">
-                      {track.closeMatchPercentage}%
-                      {/* FIX: CLOSE MATCH PERCENTAGE MAKEUP */}
+                  <Popover.Panel
+                    className={classNames(
+                      "absolute -right-1/2 z-10 mt-3 w-72 transform px-4 sm:px-0 lg:max-w-3xl xl:translate-x-1/4",
+                      isLast ? "-top-full -translate-y-full" : "" // isLast
+                    )}
+                  >
+                    <div className="rounded-lg bg-white shadow-lg ring-1 ring-black ring-opacity-5">
+                      <div className="flex flex-col space-y-2 px-7 py-2">
+                        <div>
+                          <h3 className="mb-2 text-lg font-bold">
+                            Closest match was:
+                          </h3>
+                          <p>{track.closeMatchSpotifyTitle}</p>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <span className="flex-1">
+                            <ProgressBar
+                              width={track.closeMatchPercentage ?? 0}
+                            />
+                          </span>
+                          <span className="">
+                            {formatPercentage(track.closeMatchPercentage ?? 0)}%
+                          </span>
+                        </div>
+                        <div className="mb-2">
+                          <Link
+                            className="text-indigo-600 underline duration-200 hover:text-indigo-500"
+                            state={{
+                              prevUrl: location.pathname,
+                              resourceId: resource.resourceId,
+                              resourceType: resource.resourceType,
+                            }}
+                            to={`/dashboard/youtube/confirm-track/${track.snippet.resourceId.videoId}?${searchParams}`}
+                          >
+                            See the entire list of matches
+                          </Link>
+                        </div>
+                      </div>
+                      <div className="flex flex-col space-y-2 rounded-b-md bg-gray-50 px-4 py-2">
+                        <span className="font-medium">Mark as:</span>
+                        <div className="grid grid-cols-2 gap-2">
+                          <SecondaryButton
+                            name="makeUnavailable"
+                            value={`${track.snippet.resourceId.videoId}:${track.closeMatchSpotifyTrackId}`}
+                          >
+                            Unavailable
+                          </SecondaryButton>
+                          <PrimaryButton
+                            name="makeAvailable"
+                            value={`${track.snippet.resourceId.videoId}:${track.closeMatchSpotifyTrackId}`}
+                          >
+                            Available
+                          </PrimaryButton>
+                        </div>
+                      </div>
                     </div>
-                    <div className="bg-gray-50 p-4">
-                      {/* FIX: PUT TO BUTTON HERE */}
-                    </div>
-                  </div>
+                  </Popover.Panel>
                 </Tooltip>
               </div>
             ) : track.spotifyAvailability.kind === "AVAILABLE" ? (
@@ -311,15 +346,9 @@ function Rating({ review }: { review: { rating: number } }) {
   );
 }
 
-function Tooltip({
-  isLast = false,
-  children,
-}: {
-  isLast?: boolean;
-  children: React.ReactNode;
-}) {
+function Tooltip({ children }: { children: React.ReactNode }) {
   return (
-    <div className="grid w-full  place-items-center border px-4">
+    <div className="grid w-full place-items-center px-4">
       <Popover className="relative">
         {({ open }) => (
           <>
@@ -337,122 +366,11 @@ function Tooltip({
               leaveFrom="opacity-100 translate-y-0"
               leaveTo="opacity-0 translate-y-1"
             >
-              <Popover.Panel
-                className={classNames(
-                  "absolute -right-1/2 z-10 mt-3 w-72 translate-x-1/4 transform px-4 sm:px-0 lg:max-w-3xl",
-                  isLast ? "-top-full -translate-y-full" : "" // isLast
-                )}
-              >
-                {children}
-              </Popover.Panel>
+              {children}
             </Transition>
           </>
         )}
       </Popover>
     </div>
-  );
-}
-
-function TooltipContent() {
-  return (
-    <div className="rounded-lg shadow-lg ring-1 ring-black ring-opacity-5">
-      <div className="relative grid gap-8 bg-white p-7 lg:grid-cols-2">
-        Hello
-      </div>
-      <div className="bg-gray-50 p-4">
-        <a
-          href="##"
-          className="flow-root rounded-md px-2 py-2 transition duration-150 ease-in-out hover:bg-gray-100 focus:outline-none focus-visible:ring focus-visible:ring-orange-500 focus-visible:ring-opacity-50"
-        >
-          <span className="flex items-center">
-            <span className="text-sm font-medium text-gray-900">
-              Documentation
-            </span>
-          </span>
-          <span className="block text-sm text-gray-500">
-            Start integrating products and tools
-          </span>
-        </a>
-      </div>
-    </div>
-  );
-}
-
-function IconOne() {
-  return (
-    <svg
-      width="48"
-      height="48"
-      viewBox="0 0 48 48"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <rect width="48" height="48" rx="8" fill="#FFEDD5" />
-      <path
-        d="M24 11L35.2583 17.5V30.5L24 37L12.7417 30.5V17.5L24 11Z"
-        stroke="#FB923C"
-        strokeWidth="2"
-      />
-      <path
-        fillRule="evenodd"
-        clipRule="evenodd"
-        d="M16.7417 19.8094V28.1906L24 32.3812L31.2584 28.1906V19.8094L24 15.6188L16.7417 19.8094Z"
-        stroke="#FDBA74"
-        strokeWidth="2"
-      />
-      <path
-        fillRule="evenodd"
-        clipRule="evenodd"
-        d="M20.7417 22.1196V25.882L24 27.7632L27.2584 25.882V22.1196L24 20.2384L20.7417 22.1196Z"
-        stroke="#FDBA74"
-        strokeWidth="2"
-      />
-    </svg>
-  );
-}
-
-function IconTwo() {
-  return (
-    <svg
-      width="48"
-      height="48"
-      viewBox="0 0 48 48"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <rect width="48" height="48" rx="8" fill="#FFEDD5" />
-      <path
-        d="M28.0413 20L23.9998 13L19.9585 20M32.0828 27.0001L36.1242 34H28.0415M19.9585 34H11.8755L15.9171 27"
-        stroke="#FB923C"
-        strokeWidth="2"
-      />
-      <path
-        fillRule="evenodd"
-        clipRule="evenodd"
-        d="M18.804 30H29.1963L24.0001 21L18.804 30Z"
-        stroke="#FDBA74"
-        strokeWidth="2"
-      />
-    </svg>
-  );
-}
-
-function IconThree() {
-  return (
-    <svg
-      width="48"
-      height="48"
-      viewBox="0 0 48 48"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <rect width="48" height="48" rx="8" fill="#FFEDD5" />
-      <rect x="13" y="32" width="2" height="4" fill="#FDBA74" />
-      <rect x="17" y="28" width="2" height="8" fill="#FDBA74" />
-      <rect x="21" y="24" width="2" height="12" fill="#FDBA74" />
-      <rect x="25" y="20" width="2" height="16" fill="#FDBA74" />
-      <rect x="29" y="16" width="2" height="20" fill="#FB923C" />
-      <rect x="33" y="12" width="2" height="24" fill="#FB923C" />
-    </svg>
   );
 }

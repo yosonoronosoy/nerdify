@@ -12,6 +12,7 @@ import type { YoutubeChannel } from "~/models/youtube-channel.server";
 import { Link, useLoaderData } from "@remix-run/react";
 import { useState } from "react";
 import { formatDistance } from "date-fns";
+import { ProgressBar } from "~/components/progress-bar";
 
 type Tab = typeof tabs[number];
 const tabs = [
@@ -264,21 +265,7 @@ function DetailsSidebar({
                 {currentChannel.title}
               </h2>
               <div className="text-sm font-medium text-gray-500">
-                <div className="h-1 w-full bg-gray-200">
-                  <div
-                    className={classNames(
-                      "h-1 bg-green-500",
-                      processPercentage < 25
-                        ? "bg-red-500"
-                        : processPercentage < 75
-                        ? "bg-yellow-300"
-                        : processPercentage < 99
-                        ? "bg-orange-500"
-                        : "bg-green-500"
-                    )}
-                    style={{ width: `${processPercentage}%` }}
-                  />
-                </div>
+                <ProgressBar width={processPercentage} />
                 <span className="mb-6">
                   {`${processPercentage}%`} processed
                 </span>
