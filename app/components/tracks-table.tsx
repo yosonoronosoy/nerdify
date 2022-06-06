@@ -43,6 +43,8 @@ export default function TracksTable({
   resource: Resource;
 }) {
   const [searchParams] = useSearchParams();
+  const location = useLocation();
+  const prevUrl = location.pathname;
 
   const transition = useTransition();
   const currentPage = getPageNumber(searchParams);
@@ -73,7 +75,8 @@ export default function TracksTable({
   return (
     <div className="px-4 sm:px-6 lg:px-8">
       <Outlet />
-      <Form method="post">
+      <Form method="post" action={`/resources/youtube/playlist`}>
+        <input name="prevUrl" value={prevUrl} hidden />
         {/* FIX: refresh token should be done automatically */}
         <button
           className="inline-flex items-center rounded border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-30"
@@ -89,11 +92,13 @@ export default function TracksTable({
           <div className="inline-block min-w-full py-2 align-middle md:px-6 lg:px-8">
             <div className="relative overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
               <Form
+                reloadDocument
                 className="h-[800px] overflow-y-auto"
                 method="post"
                 id="bulk-process-form"
-                action={`?${searchParams}`}
+                action={`/resources/youtube/playlist?${searchParams}`}
               >
+                <input name="prevUrl" value={prevUrl} hidden />
                 <input type="hidden" name="playlistId" value={playlistId} />
                 <table className="relative min-w-full table-fixed divide-y divide-gray-300 ">
                   <thead className="sticky top-0 z-10  bg-gray-50">
@@ -209,7 +214,7 @@ function Row({
         <input
           type="checkbox"
           className="absolute left-4 top-1/2 -mt-2 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 sm:left-6"
-          name={track.snippet.resourceId.videoId}
+          name={`${track.snippet.channelId}:${track.snippet.resourceId.videoId}`}
           value={track.snippet.title}
           checked={isSelected}
           onChange={onCheckboxChange}
@@ -268,7 +273,14 @@ function Row({
                           <h3 className="mb-2 text-lg font-bold">
                             Closest match was:
                           </h3>
-                          <p>{track.closeMatchSpotifyTitle}</p>
+                          <div className="group relative">
+                            <p className="relative overflow-hidden overflow-ellipsis whitespace-nowrap">
+                              {track.closeMatchSpotifyTitle}
+                            </p>
+                            <span className="absolute -top-full w-56 -translate-y-1/2 transform whitespace-normal rounded-sm bg-yellow-50 p-2 text-xs font-thin text-yellow-800 opacity-0 shadow-sm transition-opacity duration-200 group-hover:opacity-100">
+                              {track.closeMatchSpotifyTitle}
+                            </span>
+                          </div>
                         </div>
                         <div className="flex items-center space-x-2">
                           <span className="flex-1">
@@ -288,7 +300,7 @@ function Row({
                               resourceId: resource.resourceId,
                               resourceType: resource.resourceType,
                             }}
-                            to={`/dashboard/youtube/confirm-track/${track.snippet.resourceId.videoId}?${searchParams}`}
+                            to={`confirm-track/${track.snippet.resourceId.videoId}?${searchParams}`}
                           >
                             See the entire list of matches
                           </Link>
@@ -299,13 +311,13 @@ function Row({
                         <div className="grid grid-cols-2 gap-2">
                           <SecondaryButton
                             name="makeUnavailable"
-                            value={`${track.snippet.resourceId.videoId}:${track.closeMatchSpotifyTrackId}`}
+                            value={`${track.snippet.channelId}:${track.snippet.resourceId.videoId}:${track.closeMatchSpotifyTrackId}`}
                           >
                             Unavailable
                           </SecondaryButton>
                           <PrimaryButton
                             name="makeAvailable"
-                            value={`${track.snippet.resourceId.videoId}:${track.closeMatchSpotifyTrackId}`}
+                            value={`${track.snippet.channelId}:${track.snippet.resourceId.videoId}:${track.closeMatchSpotifyTrackId}`}
                           >
                             Available
                           </PrimaryButton>

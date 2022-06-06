@@ -24,6 +24,7 @@ const tabs = [
 type LoaderData = {
   channels: (YoutubeChannel & { _count: { spotifyTracks: number } })[];
 };
+
 export const loader: LoaderFunction = async ({ request }) => {
   const userIdFromDB = await getUserIdFromSession(request);
   const recentlyViewedChannels = await getYoutubeChannelsByUserId(userIdFromDB);
@@ -236,7 +237,7 @@ function DetailsSidebar({
       new Date(channel.lastViewedAt ?? new Date()),
       { addSuffix: true }
     ),
-    "Tracks Processed So Far": spotifyTrackCount,
+    "Spotify Tracks Found": spotifyTrackCount,
     "Total Videos": channel.totalVideos,
   };
 
