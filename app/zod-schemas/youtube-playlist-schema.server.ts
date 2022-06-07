@@ -12,6 +12,7 @@ export const youtubePlaylistItemSchema = z.object({
   id: z.string(),
   snippet: z.object({
     // publishedAt: z.string(),
+    videoOwnerChannelTitle: z.string().optional(),
     channelId: z.string(),
     title: z.string(),
     description: z.string(),
@@ -31,7 +32,6 @@ export const youtubePlaylistItemSchema = z.object({
       kind: z.string(),
       videoId: z.string(),
     }),
-    // videoOwnerChannelTitle: z.string(),
     // videoOwnerChannelId: z.string(),
   }),
 });
@@ -49,3 +49,17 @@ export const youtubePlaylistItemsSchema = z.object({
 });
 
 export type YoutubePlaylistItems = z.infer<typeof youtubePlaylistItemsSchema>;
+
+export const youtubePlaylistResponseSchema = z.object({
+  items: z.array(
+    z.object({
+      snippet: z.object({
+        title: z.string(),
+      }),
+    })
+  ),
+});
+
+export type YoutubePlaylistResponse = z.infer<
+  typeof youtubePlaylistResponseSchema
+>;

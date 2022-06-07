@@ -1,6 +1,6 @@
 import { Form, Link, Outlet, useLocation } from "@remix-run/react";
+import { SearchBarWithButton } from "~/components/search-bar-with-button";
 import { classNames } from "~/utils";
-import { SearchBarWithButton } from "./youtube/search";
 
 const tabs = [
   { name: "Channels", href: "channels" },
@@ -12,7 +12,12 @@ export default function Youtube() {
   const location = useLocation();
   const routeSections = location.pathname.split("/");
   const ytIndex = routeSections.findIndex((section) => section === "youtube");
-  const currentTab = routeSections.at(ytIndex + 1);
+  const currentTab =
+    routeSections.at(ytIndex + 1) === "search"
+      ? routeSections.at(ytIndex + 2)
+      : routeSections.at(ytIndex + 1);
+
+  if (!currentTab) return null;
 
   return (
     <div className="mt-8">
@@ -66,24 +71,24 @@ export default function Youtube() {
           ))}
         </nav>
       </div>
-      {currentTab ? (
-        <Form
-          method="get"
-          action={`${currentTab}/search`}
-          className="mx-auto mb-12 w-3/4 md:w-3/4 lg:w-5/12"
-        >
-          <SearchBarWithButton
-            title={
-              currentTab !== "search"
-                ? currentTab
+      <Form
+        method="get"
+        action={`/dashboard/youtube/search/${currentTab}`}
+        className="mx-auto mb-12 w-3/4 md:w-3/4 lg:w-5/12"
+      >
+        <SearchBarWithButton
+          title={
+            currentTab !== "playlists"
+              ? `Search ${
+                  currentTab
                     .split("")
                     .slice(0, currentTab.length - 1)
                     .join("") ?? ""
-                : currentTab
-            }
-          />
-        </Form>
-      ) : null}
+                }`
+              : "Enter playlist id"
+          }
+        />
+      </Form>
       <Outlet />
     </div>
   );

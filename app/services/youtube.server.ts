@@ -20,6 +20,7 @@ import {
 import { getYoutubeVideoByTitle } from "~/models/youtube-video.server";
 import { youtubeChannelListSchema } from "~/zod-schemas/youtube-channels-schema.server";
 import type { YoutubePlaylistItems } from "~/zod-schemas/youtube-playlist-schema.server";
+import { youtubePlaylistResponseSchema } from "~/zod-schemas/youtube-playlist-schema.server";
 import { youtubePlaylistItemsSchema } from "~/zod-schemas/youtube-playlist-schema.server";
 import type {
   YoutubeChannelSearchResult,
@@ -36,7 +37,8 @@ import {
 
 const baseUrl = "https://www.googleapis.com/youtube/v3";
 const channelUrl = `${baseUrl}/channels`;
-const playlistUrl = `${baseUrl}/playlistItems`;
+const playlistItemsUrl = `${baseUrl}/playlistItems`;
+const playlistUrl = `${baseUrl}/playlists`;
 const videosUrl = `${baseUrl}/videos`;
 const searchUrl = `${baseUrl}/search`;
 
@@ -86,7 +88,7 @@ async function fetchYoutubePlaylistPage({
     pageToken: pageToken ?? "",
   });
 
-  const videosRawRes = await fetch(`${playlistUrl}?${querystring}`).then(
+  const videosRawRes = await fetch(`${playlistItemsUrl}?${querystring}`).then(
     (res) => res.json()
   );
   const res = youtubePlaylistItemsSchema.parse(videosRawRes);
@@ -470,3 +472,15 @@ export async function getPlaylistData({
   return { extendedResponse, headers };
 }
 
+export async function getPlaylistTitle(id: string) {
+  const querystring = getQuerystring({
+    id,
+  });
+
+  const videosRawRes = await fetch(`${playlistUrl}?${querystring}`).then(
+    (res) => res.json()
+  );
+
+  const res = youtubePlaylistResponseSchema.parse(videosRawRes);
+  return res.items[0].snippet.title;
+}

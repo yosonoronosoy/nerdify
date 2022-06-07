@@ -76,7 +76,7 @@ export default function TracksTable({
     <div className="px-4 sm:px-6 lg:px-8">
       <Outlet />
       <Form method="post" action={`/resources/youtube/playlist`}>
-        <input name="prevUrl" value={prevUrl} hidden />
+        <input name="prevUrl" value={prevUrl} hidden readOnly />
         {/* FIX: refresh token should be done automatically */}
         <button
           className="inline-flex items-center rounded border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-30"
@@ -98,8 +98,8 @@ export default function TracksTable({
                 id="bulk-process-form"
                 action={`/resources/youtube/playlist?${searchParams}`}
               >
-                <input name="prevUrl" value={prevUrl} hidden />
-                <input type="hidden" name="playlistId" value={playlistId} />
+                <input name="prevUrl" value={prevUrl} hidden readOnly />
+                <input hidden name="playlistId" value={playlistId} readOnly />
                 <table className="relative min-w-full table-fixed divide-y divide-gray-300 ">
                   <thead className="sticky top-0 z-10  bg-gray-50">
                     {selectedTracks.length > 0 && (
@@ -245,7 +245,7 @@ function Row({
         </Link>
       </td>
       <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-        {track.snippet.channelTitle}
+        {track.snippet.videoOwnerChannelTitle}
       </td>
       <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
         {(transition.state === "submitting" ||
