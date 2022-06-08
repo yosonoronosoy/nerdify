@@ -1,4 +1,4 @@
-import type { YoutubeChannel } from "@prisma/client";
+import type { Status, YoutubeChannel } from "@prisma/client";
 import { prisma } from "~/db.server";
 
 export type { YoutubeChannel } from "@prisma/client";
@@ -18,46 +18,54 @@ export async function getYoutubeChannelsByUserId({
   userId: string;
   sort?: "asc" | "desc";
 }) {
-  const channels = await prisma.youtubeChannel.findMany({
-    where: {
-      userId,
+  return prisma.userOnYoutubeChannel.findMany({
+    where: { userId },
+    include: {
+      youtubeChannel: {
+        select: {
+          id: true,
+          title: true,
+          channelId: true,
+          status: true,
+          totalVideos: true,
+          image: true,
+          _count: {
+            select: {
+              spotifyTracks: true,
+            },
+          },
+        },
+      },
     },
     orderBy: {
       lastViewedAt: sort ? sort : "desc",
     },
-    include: {
-      _count: {
-        select: {
-          spotifyTracks: true,
-        },
-      },
-    },
   });
-
-  // console.dir(channels, {depth: Number.MAX_SAFE_INTEGER});
-  return channels;
 }
 
 type CreateYoutubeChannelInput = Pick<
   YoutubeChannel,
   "channelId" | "title" | "totalVideos"
 > & {
-  spotifyUserId?: string;
+  userIdFromDB: string;
 };
 
 export function createYoutubeChannel({
   channelId,
   title,
-  spotifyUserId,
+  userIdFromDB,
   totalVideos,
 }: CreateYoutubeChannelInput) {
   return prisma.youtubeChannel.create({
     data: {
       title,
       channelId,
-      status: "UNPROCESSED",
       totalVideos,
-      user: { connect: { spotifyUserId } },
+      users: {
+        connect: {
+          userId: userIdFromDB,
+        },
+      },
     },
   });
 }
@@ -67,39 +75,41 @@ export async function upsertYoutubeChannel({
   title,
   status,
   userId,
-  spotifyUserId,
   image,
   totalVideos,
 }: Partial<
   Pick<
     YoutubeChannel,
-    "title" | "status" | "channelId" | "lastViewedAt" | "image" | "totalVideos"
+    "title" | "status" | "channelId" | "image" | "totalVideos"
   >
-> &
-  (
-    | { userId: string; spotifyUserId?: undefined }
-    | { spotifyUserId: string; userId?: undefined }
-  )) {
-  const connection = userId
-    ? { user: { connect: { id: userId } } }
-    : {
-        user: { connect: { spotifyUserId } },
-      };
-
+> & { userId: string }) {
   return prisma.youtubeChannel.upsert({
     where: { channelId },
     update: {
       title,
       status,
-      lastViewedAt: new Date(),
+      users: {
+        update: {
+          where: {
+            userId: userId,
+          },
+          data: {
+            lastViewedAt: new Date(),
+          },
+        },
+      },
     },
     create: {
       title: title ?? "",
-      status: "UNPROCESSED",
       image: image ?? "",
       totalVideos: totalVideos ?? 0,
       channelId: channelId ?? "",
-      ...connection,
+      users: {
+        create: {
+          userId,
+          lastViewedAt: new Date(),
+        },
+      },
     },
   });
 }

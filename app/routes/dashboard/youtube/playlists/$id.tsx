@@ -29,6 +29,8 @@ export const loader: LoaderFunction = async ({ request, params }) => {
     userIdFromDB: userId,
   });
 
+  // TODO: UPSERT PLAYLIST
+
   return json<LoaderData>(
     {
       ...extendedResponse,

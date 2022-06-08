@@ -21,14 +21,15 @@ enum Availability {
 }
 
 model User {
-  id              String           @id @default(cuid())
-  email           String           @unique
-  spotifyUserId   String           @unique
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
-  trackRating     TrackRating[]
-  favorites       Favorite[]
-  youtubeChannels YoutubeChannel[]
+  id               String                  @id @default(cuid())
+  email            String                  @unique
+  spotifyUserId    String                  @unique
+  createdAt        DateTime                @default(now())
+  updatedAt        DateTime                @updatedAt
+  trackRating      TrackRating[]
+  favorites        Favorite[]
+  youtubeChannels  UserOnYoutubeChannel[]
+  youtubePlaylists UserOnYoutubePlaylist[]
 }
 
 model Favorite {
@@ -41,14 +42,28 @@ model Favorite {
 }
 
 model YoutubePlaylist {
-  id            String                @id @default(cuid())
+  id            String                  @id @default(cuid())
   title         String
-  playlistId    String                @unique
+  playlistId    String                  @unique
   trackCount    Int
   status        Status
   pages         YoutubePlaylistPage[]
   youtubeVideos YoutubeVideo[]
   spotifyTracks SpotifyTrack[]
+  user          UserOnYoutubePlaylist[]
+}
+
+model UserOnYoutubePlaylist {
+  userId            String           @unique
+  youtubePlaylistId String
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  user              User?            @relation(fields: [userId], references: [id])
+  youtubePlaylist   YoutubePlaylist? @relation(fields: [youtubePlaylistId], references: [id])
+  isFavorite        Boolean          @default(false)
+  lastViewedAt      DateTime?        @default(now())
+
+  @@id([userId, youtubePlaylistId])
 }
 
 model YoutubePlaylistPage {
@@ -60,20 +75,31 @@ model YoutubePlaylistPage {
 }
 
 model YoutubeChannel {
-  id            String         @id @default(cuid())
+  id            String                 @id @default(cuid())
   title         String
-  channelId     String         @unique
-  status        Status
+  channelId     String                 @unique
   spotifyTracks SpotifyTrack[]
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-  lastViewedAt  DateTime?      @default(now())
-  isFavorite    Boolean        @default(false)
-  user          User           @relation(fields: [userId], references: [id])
-  userId        String
+  createdAt     DateTime               @default(now())
+  updatedAt     DateTime               @updatedAt
   image         String?
   totalVideos   Int
   youtubeVideos YoutubeVideo[]
+  users         UserOnYoutubeChannel[]
+  status        Status                 @default(UNPROCESSED)
+}
+
+model UserOnYoutubeChannel {
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  user             User           @relation(fields: [userId], references: [id])
+  userId           String         @unique
+  youtubeChannelId String
+  youtubeChannel   YoutubeChannel @relation(fields: [youtubeChannelId], references: [id])
+  isFavorite       Boolean        @default(false)
+  lastViewedAt     DateTime?      @default(now())
+
+
+  @@id([userId, youtubeChannelId])
 }
 
 model TrackRating {
