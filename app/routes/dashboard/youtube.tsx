@@ -17,8 +17,6 @@ export default function Youtube() {
       ? routeSections.at(ytIndex + 2)
       : routeSections.at(ytIndex + 1);
 
-  if (!currentTab) return null;
-
   return (
     <div className="mt-8">
       <div className="sm:hidden">
@@ -71,24 +69,26 @@ export default function Youtube() {
           ))}
         </nav>
       </div>
-      <Form
-        method="get"
-        action={`/dashboard/youtube/search/${currentTab}`}
-        className="mx-auto mb-12 w-3/4 md:w-3/4 lg:w-5/12"
-      >
-        <SearchBarWithButton
-          title={
-            currentTab !== "playlists"
-              ? `Search ${
-                  currentTab
-                    .split("")
-                    .slice(0, currentTab.length - 1)
-                    .join("") ?? ""
-                }`
-              : "Enter playlist id"
-          }
-        />
-      </Form>
+      {currentTab ? (
+        <Form
+          method="get"
+          action={`/dashboard/youtube/search/${currentTab}`}
+          className="mx-auto mb-12 w-3/4 md:w-3/4 lg:w-5/12"
+        >
+          <SearchBarWithButton
+            title={
+              currentTab !== "playlists"
+                ? `Search ${
+                    currentTab
+                      .split("")
+                      .slice(0, currentTab.length - 1)
+                      .join("") ?? ""
+                  }`
+                : "Enter playlist id"
+            }
+          />
+        </Form>
+      ) : null}
       <Outlet />
     </div>
   );

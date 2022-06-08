@@ -8,11 +8,11 @@ import { json } from "@remix-run/node";
 import { getYoutubeChannelsByUserId } from "~/models/youtube-channel.server";
 import { getUserIdFromSession } from "~/services/session.server";
 import { capitalize, classNames } from "~/utils";
-import type { YoutubeChannel } from "~/models/youtube-channel.server";
 import { Link, useLoaderData } from "@remix-run/react";
 import { useState } from "react";
 import { formatDistance } from "date-fns";
 import { ProgressBar } from "~/components/progress-bar";
+import { z } from "zod";
 
 type Tab = typeof tabs[number];
 const tabs = [
@@ -21,22 +21,64 @@ const tabs = [
   { name: "Favorited", href: "#", current: false },
 ];
 
+const resourceSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  image: z.string().nullable(),
+  status: z.union([
+    z.literal("PROCESSED"),
+    z.literal("PROCESSING"),
+    z.literal("OUTDATED"),
+    z.literal("UNPROCESSED"),
+  ]),
+  lastViewedAt: z.union([z.null(), z.date()]),
+  totalVideos: z.number(),
+  _count: z.object({ spotifyTracks: z.number() }),
+  resourceId: z.string(),
+});
+
+const resourcesSchema = resourceSchema.array();
+type Resource = z.infer<typeof resourceSchema>;
+
 type LoaderData = {
-  channels: (YoutubeChannel & { _count: { spotifyTracks: number } })[];
+  channels: Resource[];
 };
 
 export const loader: LoaderFunction = async ({ request }) => {
   const userIdFromDB = await getUserIdFromSession(request);
   const recentlyViewedChannels = await getYoutubeChannelsByUserId(userIdFromDB);
+  const channels = resourcesSchema.parse(
+    recentlyViewedChannels.map((c) => {
+      const { channelId, ...channel } = c;
+      return {
+        ...channel,
+        resourceId: channelId,
+      };
+    })
+  );
 
-  return json<LoaderData>({ channels: recentlyViewedChannels });
+  return json<LoaderData>({ channels });
 };
 
 export default function ChannelsIndex() {
   const data = useLoaderData<LoaderData>();
-  const [selectedChannel, setSelectedChannel] = useState<
-    LoaderData["channels"][number] | undefined
-  >(data.channels.at(0));
+  const [selectedChannel, setSelectedChannel] = useState<Resource | undefined>(
+    data.channels.at(0)
+  );
+
+  const formattedChannel = selectedChannel
+    ? {
+        Title: selectedChannel.title,
+        Status: capitalize(selectedChannel.status),
+        "Last Time Viewed": formatDistance(
+          new Date(),
+          new Date(selectedChannel.lastViewedAt ?? new Date()),
+          { addSuffix: true }
+        ),
+        "Spotify Tracks Found": selectedChannel._count.spotifyTracks,
+        "Total Videos": selectedChannel.totalVideos,
+      }
+    : undefined;
 
   return (
     <div className="flex flex-1 items-stretch overflow-hidden">
@@ -57,7 +99,7 @@ export default function ChannelsIndex() {
 
           {/* Gallery */}
           <Gallery
-            channels={data.channels}
+            resources={data.channels}
             current={selectedChannel}
             onSelect={setSelectedChannel}
           />
@@ -65,7 +107,10 @@ export default function ChannelsIndex() {
       </main>
 
       {/* Details sidebar */}
-      <DetailsSidebar currentChannel={selectedChannel} />
+      <DetailsSidebar
+        currentChannel={selectedChannel}
+        formattedChannel={formattedChannel}
+      />
     </div>
   );
 }
@@ -147,17 +192,15 @@ function DesktopViewTabs({ tabs }: { tabs: Tab[] }) {
   );
 }
 
-type CurrentChannel = LoaderData["channels"][number];
-type OnSelect = React.Dispatch<
-  React.SetStateAction<CurrentChannel | undefined>
->;
+type OnSelect = React.Dispatch<React.SetStateAction<Resource | undefined>>;
+
 function Gallery({
-  channels,
+  resources,
   current,
   onSelect,
 }: {
-  channels: LoaderData["channels"];
-  current: CurrentChannel | undefined;
+  resources: Resource[];
+  current: Resource | undefined;
   onSelect: OnSelect;
 }) {
   return (
@@ -166,39 +209,39 @@ function Gallery({
         Recently viewed
       </h2>
       <ul className="grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 sm:gap-x-6 md:grid-cols-4 lg:grid-cols-3 xl:grid-cols-4 xl:gap-x-8">
-        {channels.map((channel) => (
-          <li key={channel.title} className="relative">
+        {resources.map((resource) => (
+          <li key={resource.title} className="relative">
             <div
               className={classNames(
-                channel.id === current?.id
+                resource.id === current?.id
                   ? "ring-2 ring-indigo-500 ring-offset-2"
                   : "focus-within:ring-2 focus-within:ring-indigo-500 focus-within:ring-offset-2 focus-within:ring-offset-gray-100",
                 "group aspect-w-10 aspect-h-7 block w-full overflow-hidden rounded-lg bg-gray-100"
               )}
             >
               <img
-                src={channel.image ?? ""}
+                src={resource.image ?? ""}
                 alt=""
                 className={classNames(
-                  channel.id === current?.id ? "" : "group-hover:opacity-75",
+                  resource.id === current?.id ? "" : "group-hover:opacity-75",
                   "pointer-events-none object-cover"
                 )}
               />
               <button
                 type="button"
                 className="absolute inset-0 focus:outline-none"
-                onClick={() => onSelect(channel)}
+                onClick={() => onSelect(resource)}
               >
                 <span className="sr-only">
-                  View details for {channel.title}
+                  View details for {resource.title}
                 </span>
               </button>
             </div>
             <p className="pointer-events-none mt-2 block truncate text-sm font-medium text-gray-900">
-              {channel.title}
+              {resource.title}
             </p>
             <p className="pointer-events-none block text-sm font-medium text-gray-500">
-              {capitalize(channel.status.toLowerCase())}
+              {capitalize(resource.status.toLowerCase())}
             </p>
           </li>
         ))}
@@ -207,44 +250,31 @@ function Gallery({
   );
 }
 
+type FormattedResource = {
+  Title: string;
+  Status: string;
+  "Last Time Viewed": string;
+  "Spotify Tracks Found": number;
+  "Total Videos": number;
+};
+
 function DetailsSidebar({
   currentChannel,
+  formattedChannel,
 }: {
-  currentChannel: CurrentChannel | undefined;
+  currentChannel: Resource | undefined;
+  formattedChannel: FormattedResource | undefined;
 }) {
-  if (!currentChannel) {
+  if (!currentChannel || !formattedChannel) {
     return null;
   }
 
-  const {
-    id,
-    userId,
-    createdAt,
-    image,
-    isFavorite,
-    updatedAt,
-    status,
-    channelId,
-    ...channel
-  } = currentChannel;
   const spotifyTrackCount = currentChannel._count.spotifyTracks;
 
-  const formattedChannel = {
-    Title: channel.title,
-    Status: capitalize(status),
-    "Last Time Viewed": formatDistance(
-      new Date(),
-      new Date(channel.lastViewedAt ?? new Date()),
-      { addSuffix: true }
-    ),
-    "Spotify Tracks Found": spotifyTrackCount,
-    "Total Videos": channel.totalVideos,
-  };
-
   const processPercentage =
-    channel.totalVideos === 0
+    currentChannel.totalVideos === 0
       ? 0
-      : Math.round(spotifyTrackCount / channel.totalVideos);
+      : Math.round(spotifyTrackCount / currentChannel.totalVideos);
 
   //TODO: ADD VIDEOS PROCESSED
   // FIX: CHANGE TRACKS PROCESSED TO SPOTIFY TRACKS FOUND
@@ -315,7 +345,7 @@ function DetailsSidebar({
 
         <div className="flex">
           <Link
-            to={channelId}
+            to={currentChannel.resourceId}
             className="flex-1 rounded-md border border-transparent bg-indigo-600 py-2 px-4 text-center text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
           >
             Go to channel
