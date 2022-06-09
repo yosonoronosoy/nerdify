@@ -49,6 +49,7 @@ export const loader: LoaderFunction = async ({ params, request }) => {
     userId,
     image: imageUrl,
     totalVideos: extendedResponse.pageInfo.totalResults,
+    status: "PROCESSING",
   });
 
   return json<LoaderData>(

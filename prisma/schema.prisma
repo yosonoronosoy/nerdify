@@ -45,25 +45,16 @@ model YoutubePlaylist {
   id            String                  @id @default(cuid())
   title         String
   playlistId    String                  @unique
-  trackCount    Int
-  status        Status
-  pages         YoutubePlaylistPage[]
-  youtubeVideos YoutubeVideo[]
   spotifyTracks SpotifyTrack[]
-  user          UserOnYoutubePlaylist[]
-}
+  pages         YoutubePlaylistPage[]
+  image         String?
+  trackCount    Int
+  youtubeVideos YoutubeVideo[]
+  users         UserOnYoutubePlaylist[]
+  status        Status                  @default(UNPROCESSED)
 
-model UserOnYoutubePlaylist {
-  userId            String           @unique
-  youtubePlaylistId String
-  createdAt         DateTime         @default(now())
-  updatedAt         DateTime         @updatedAt
-  user              User?            @relation(fields: [userId], references: [id])
-  youtubePlaylist   YoutubePlaylist? @relation(fields: [youtubePlaylistId], references: [id])
-  isFavorite        Boolean          @default(false)
-  lastViewedAt      DateTime?        @default(now())
-
-  @@id([userId, youtubePlaylistId])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model YoutubePlaylistPage {
@@ -79,20 +70,21 @@ model YoutubeChannel {
   title         String
   channelId     String                 @unique
   spotifyTracks SpotifyTrack[]
-  createdAt     DateTime               @default(now())
-  updatedAt     DateTime               @updatedAt
   image         String?
   totalVideos   Int
   youtubeVideos YoutubeVideo[]
   users         UserOnYoutubeChannel[]
   status        Status                 @default(UNPROCESSED)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model UserOnYoutubeChannel {
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
-  user             User           @relation(fields: [userId], references: [id])
   userId           String         @unique
+  user             User           @relation(fields: [userId], references: [id])
   youtubeChannelId String
   youtubeChannel   YoutubeChannel @relation(fields: [youtubeChannelId], references: [id])
   isFavorite       Boolean        @default(false)
@@ -100,6 +92,19 @@ model UserOnYoutubeChannel {
 
 
   @@id([userId, youtubeChannelId])
+}
+
+model UserOnYoutubePlaylist {
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  userId            String          @unique
+  user              User            @relation(fields: [userId], references: [id])
+  youtubePlaylistId String
+  youtubePlaylist   YoutubePlaylist @relation(fields: [youtubePlaylistId], references: [id])
+  isFavorite        Boolean         @default(false)
+  lastViewedAt      DateTime?       @default(now())
+
+  @@id([userId, youtubePlaylistId])
 }
 
 model TrackRating {

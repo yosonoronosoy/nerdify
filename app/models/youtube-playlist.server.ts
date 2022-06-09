@@ -13,6 +13,40 @@ export function getYoutubePlaylistByTitle(title: `${string} - Uploads`) {
   });
 }
 
+export function getYoutubePlaylistsByUserId({
+  userId,
+  sort,
+}: {
+  userId: string;
+  sort: "asc" | "desc";
+}) {
+  return prisma.userOnYoutubePlaylist.findMany({
+    where: {
+      userId,
+    },
+    include: {
+      youtubePlaylist: {
+        select: {
+          id: true,
+          title: true,
+          playlistId: true,
+          status: true,
+          trackCount: true,
+          image: true,
+          _count: {
+            select: {
+              spotifyTracks: true,
+            },
+          },
+        },
+      },
+    },
+    orderBy: {
+      lastViewedAt: sort ? sort : "desc",
+    },
+  });
+}
+
 export function createYoutubePlaylist(
   playlist: Omit<YoutubePlaylist, "id" | "status" | "title"> & {
     title: string;
@@ -21,7 +55,6 @@ export function createYoutubePlaylist(
   return prisma.youtubePlaylist.create({
     data: {
       ...playlist,
-      status: "UNPROCESSED",
     },
   });
 }
@@ -115,6 +148,59 @@ export function updateYoutubePlaylistStatus({
     where: whereClause,
     data: {
       status,
+    },
+  });
+}
+
+export async function upsertYoutubePlaylist({
+  playlistId,
+  title,
+  status,
+  userId,
+  image,
+  trackCount,
+}: Partial<
+  Pick<
+    YoutubePlaylist,
+    "title" | "status" | "playlistId" | "image" | "trackCount"
+  >
+> & { userId: string }) {
+  console.log({ playlistId, userId });
+
+  return prisma.youtubePlaylist.upsert({
+    where: { playlistId },
+    update: {
+      title,
+      status,
+      users: {
+        connectOrCreate: {
+          where: { userId },
+          create: {
+            userId,
+            lastViewedAt: new Date(),
+          },
+        },
+        update: {
+          where: {
+            userId: userId,
+          },
+          data: {
+            lastViewedAt: new Date(),
+          },
+        },
+      },
+    },
+    create: {
+      title: title ?? "",
+      image: image ?? "",
+      trackCount: trackCount ?? 0,
+      playlistId: playlistId ?? "",
+      users: {
+        create: {
+          userId,
+          lastViewedAt: new Date(),
+        },
+      },
     },
   });
 }

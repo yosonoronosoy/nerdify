@@ -400,6 +400,7 @@ export async function getPlaylistData({
   request,
   pageNumber,
   userIdFromDB,
+  imgUrl,
 }: {
   playlistId: string;
   title: string;
@@ -408,6 +409,7 @@ export async function getPlaylistData({
   request: Request;
   pageNumber: number;
   userIdFromDB: string;
+  imgUrl?: string;
 }) {
   let playlistFromDB = await getYoutubePlaylistByPlaylistId(playlistId);
 
@@ -416,6 +418,7 @@ export async function getPlaylistData({
       title,
       playlistId,
       trackCount: 0,
+      image: imgUrl ?? null,
     });
   }
 
@@ -472,7 +475,7 @@ export async function getPlaylistData({
   return { extendedResponse, headers };
 }
 
-export async function getPlaylistTitle(id: string) {
+export async function getPlaylistMetadata(id: string) {
   const querystring = getQuerystring({
     id,
   });
@@ -482,5 +485,8 @@ export async function getPlaylistTitle(id: string) {
   );
 
   const res = youtubePlaylistResponseSchema.parse(videosRawRes);
-  return res.items[0].snippet.title;
+  return {
+    title: res.items[0].snippet.title,
+    thumbnail: res.items[0].snippet.thumbnails.default?.url,
+  };
 }

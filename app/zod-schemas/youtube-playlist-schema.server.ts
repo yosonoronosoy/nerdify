@@ -55,6 +55,15 @@ export const youtubePlaylistResponseSchema = z.object({
     z.object({
       snippet: z.object({
         title: z.string(),
+        thumbnails: z
+          .object({
+            default: thumnbailSchema,
+            medium: thumnbailSchema,
+            high: thumnbailSchema,
+            standard: thumnbailSchema,
+            maxres: thumnbailSchema,
+          })
+          .partial(),
       }),
     })
   ),

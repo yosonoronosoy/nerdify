@@ -28,7 +28,9 @@ const useSSRLayoutEffect = isServerRender ? () => {} : useLayoutEffect;
 const getPageNumber = (searchParams: URLSearchParams) =>
   Number(searchParams.get("page") ?? "1");
 
-// FIX: fix tracks types
+// TODO: add a form to add song to spotify playlist
+// TODO: add a for to create spotify playlist from selected songs
+
 // FIX: consider leaving Row as a children prop
 type Resource = { resourceId: string; resourceType: string };
 export default function TracksTable({
@@ -60,7 +62,6 @@ export default function TracksTable({
     setChecked(selectedTracks.length === tracks.length);
     setIndeterminate(isIndeterminate);
 
-    // WARNING: check this
     if (checkbox.current) {
       checkbox.current.indeterminate = isIndeterminate;
     }

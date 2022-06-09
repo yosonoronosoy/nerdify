@@ -3,9 +3,11 @@ import type { LoaderFunction } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { getUserIdFromSession } from "~/services/session.server";
 import type { ExtendedResponse } from "~/services/youtube.server";
-import { getPlaylistData, getPlaylistTitle } from "~/services/youtube.server";
+import { getPlaylistMetadata } from "~/services/youtube.server";
+import { getPlaylistData } from "~/services/youtube.server";
 import invariant from "tiny-invariant";
 import TracksTable from "~/components/tracks-table";
+import { upsertYoutubePlaylist } from "~/models/youtube-playlist.server";
 
 const getPageNumber = (searchParams: URLSearchParams) =>
   Number(searchParams.get("page") ?? "1");
@@ -18,7 +20,7 @@ export const loader: LoaderFunction = async ({ request, params }) => {
   const pageNumber = getPageNumber(new URL(request.url).searchParams);
   invariant(typeof playlistId === "string", "playlistId must be a string");
 
-  const title = await getPlaylistTitle(playlistId);
+  const { title, thumbnail } = await getPlaylistMetadata(playlistId);
   const { headers, extendedResponse } = await getPlaylistData({
     title,
     request,
@@ -27,9 +29,17 @@ export const loader: LoaderFunction = async ({ request, params }) => {
     resourceId: playlistId,
     serviceKey: "youtube-playlist",
     userIdFromDB: userId,
+    imgUrl: thumbnail,
   });
 
-  // TODO: UPSERT PLAYLIST
+  await upsertYoutubePlaylist({
+    userId,
+    image: thumbnail,
+    title,
+    trackCount: extendedResponse.totalItems,
+    playlistId,
+    status: "PROCESSING",
+  });
 
   return json<LoaderData>(
     {
