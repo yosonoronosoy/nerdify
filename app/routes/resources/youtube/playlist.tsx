@@ -11,11 +11,10 @@ import {
   spotifyStrategy,
 } from "~/services/auth.server";
 import { searchTrack } from "~/services/spotify.server";
-const levenPromise = import("leven");
+import leven from 'leven';
 
 export const action: ActionFunction = async ({ request }) => {
   console.log("============ HIT ============");
-  const leven = (await levenPromise).default;
   const spotifySession = await spotifyStrategy.getSession(request);
 
   if (!spotifySession) {

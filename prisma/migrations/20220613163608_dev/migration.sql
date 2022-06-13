@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "SpotifyPlaylist" ADD COLUMN     "lastViewedAt" TIMESTAMP(3) DEFAULT CURRENT_TIMESTAMP;

@@ -90,7 +90,10 @@ export async function searchTrack({
   return { kind: "success", data: tracks.items } as const;
 }
 
-export async function getSpotifyUserPlaylists(request: Request) {
+export async function getSpotifyUserPlaylists(
+  request: Request,
+  offset?: number
+) {
   const sessionFromSpotifyStrategy = await spotifyStrategy.getSession(request);
   const spotifyUserId = await getUserIdFromSpotifySession(request);
   const accessToken = sessionFromSpotifyStrategy?.accessToken;
@@ -101,12 +104,20 @@ export async function getSpotifyUserPlaylists(request: Request) {
   );
   invariant(typeof spotifyUserId === "string", "No spotify user id provided");
 
-  const rawRes = await fetch(userPlaylistsUrl, {
+  const querystring = getQuerystring({
+    offset: offset ? `${offset}` : "0",
+    limit: "50",
+  });
+  const spotifyApiUrl = `${userPlaylistsUrl}?${querystring}`;
+
+  const rawRes = await fetch(spotifyApiUrl, {
     headers: {
       Authorization: `Bearer ${accessToken}`,
     },
   }).then((res) => res.json());
-
+  if ("error" in rawRes) {
+    console.log(rawRes);
+  }
   // console.dir(
   //   { ...rawRes },
   //   { depth: Number.MAX_SAFE_INTEGER }

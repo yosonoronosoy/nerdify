@@ -30,6 +30,21 @@ model User {
   favorites        Favorite[]
   youtubeChannels  UserOnYoutubeChannel[]
   youtubePlaylists UserOnYoutubePlaylist[]
+  spotifyPlaylists SpotifyPlaylist[]
+}
+
+model SpotifyPlaylist {
+  id         String  @id @default(cuid())
+  name       String
+  user       User?   @relation(fields: [userId], references: [id])
+  userId     String?
+  playlistId String  @unique
+  image      String?
+  url        String?
+
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  lastViewedAt DateTime? @default(now())
 }
 
 model Favorite {
