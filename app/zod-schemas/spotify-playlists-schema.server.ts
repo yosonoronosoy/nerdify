@@ -26,6 +26,7 @@ export const spotifyPlaylistsSchema = z.object({
   next: z.string().nullable(),
   previous: z.string().nullable(),
   total: z.number(),
+  offset: z.number(),
 });
 
 export type SpotifyPlaylistsSchema = z.infer<typeof spotifyPlaylistsSchema>;

@@ -118,10 +118,6 @@ export async function getSpotifyUserPlaylists(
   if ("error" in rawRes) {
     console.log(rawRes);
   }
-  // console.dir(
-  //   { ...rawRes },
-  //   { depth: Number.MAX_SAFE_INTEGER }
-  // );
 
   const res = spotifyPlaylistsSchema.parse(rawRes);
 
