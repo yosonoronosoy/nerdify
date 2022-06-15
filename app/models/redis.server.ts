@@ -1,16 +1,27 @@
 import { redis } from "~/services/redis.server";
+import {
+  SpotifyPlaylistsSchema,
+  spotifyPlaylistsSchema,
+} from "~/zod-schemas/spotify-playlists-schema.server";
 import type { YoutubePlaylistItems } from "~/zod-schemas/youtube-playlist-schema.server";
 import { youtubePlaylistItemsSchema } from "~/zod-schemas/youtube-playlist-schema.server";
 
 type YoutubePlaylistId = string;
 type YoutubePage = number | "*";
 type YoutubePageCacheKey = `youtube-page:${YoutubePlaylistId}:${YoutubePage}`;
+type UserId = string;
+type SpotifyOffset = number;
+type SpotifyPlaylistKey = `spotify-playlists:${UserId}:${SpotifyOffset}`;
 
 const REDIS_KEYS = {
   getYoutubePageKey: (
     playlistId: YoutubePlaylistId,
     page: YoutubePage
   ): YoutubePageCacheKey => `youtube-page:${playlistId}:${page}`,
+  getSpotifyPlaylistKey: (
+    userId: string,
+    offset: SpotifyOffset
+  ): SpotifyPlaylistKey => `spotify-playlists:${userId}:${offset}`,
 };
 
 export async function getCachedYoutubePlaylistPage({
@@ -80,4 +91,34 @@ export async function addOneToManyCacheYoutubePlaylistPages({
       );
     })
   );
+}
+
+export async function getSpotifyPlaylistsFromCache({
+  userId,
+  offset,
+}: {
+  userId: string;
+  offset: number;
+}) {
+  const key = REDIS_KEYS.getSpotifyPlaylistKey(userId, offset);
+  const cacheRes = await redis.get(key);
+
+  if (!cacheRes) {
+    return null;
+  }
+
+  return spotifyPlaylistsSchema.parse(JSON.parse(cacheRes));
+}
+
+export async function setSpotifyPlaylistsInCache({
+  userId,
+  offset,
+  data,
+}: {
+  userId: string;
+  offset: number;
+  data: SpotifyPlaylistsSchema;
+}) {
+  const key = REDIS_KEYS.getSpotifyPlaylistKey(userId, offset);
+  return redis.set(key, JSON.stringify(data), "EX", 60 * 60 * 2);
 }
