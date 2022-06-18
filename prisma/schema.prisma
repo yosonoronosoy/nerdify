@@ -31,16 +31,18 @@ model User {
   youtubeChannels  UserOnYoutubeChannel[]
   youtubePlaylists UserOnYoutubePlaylist[]
   spotifyPlaylists SpotifyPlaylist[]
+  playlistOffset   Int                     @default(0)
+  totalPlaylists   Int                     @default(0)
 }
 
 model SpotifyPlaylist {
   id         String  @id @default(cuid())
   name       String
-  user       User?   @relation(fields: [userId], references: [id])
-  userId     String?
+  user       User    @relation(fields: [userId], references: [id])
+  userId     String
   playlistId String  @unique
   image      String?
-  url        String?
+  url        String
 
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt

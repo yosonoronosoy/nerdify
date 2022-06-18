@@ -85,3 +85,5 @@ export function formatPercentage(percentage: number, decimalPlaces?: number) {
     ? Math.round(percentage)
     : percentage.toFixed(decimalPlaces);
 }
+
+export const timer = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));

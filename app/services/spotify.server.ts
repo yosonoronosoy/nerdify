@@ -1,8 +1,12 @@
 import invariant from "tiny-invariant";
+import { upsertManySpotifyPlaylists } from "~/models/spotify-playlist.server";
 import { spotifyPlaylistsSchema } from "~/zod-schemas/spotify-playlists-schema.server";
 import { spotifySearchTrackResponse } from "~/zod-schemas/spotify-track-search.server";
 import { spotifyStrategy } from "./auth.server";
-import { getUserIdFromSpotifySession } from "./session.server";
+import {
+  getUserIdFromSession,
+  getUserIdFromSpotifySession,
+} from "./session.server";
 
 const baseUrl = `https://api.spotify.com/v1`;
 const tracksUrl = `${baseUrl}/tracks`;
@@ -96,6 +100,7 @@ export async function getSpotifyUserPlaylists(
 ) {
   const sessionFromSpotifyStrategy = await spotifyStrategy.getSession(request);
   const spotifyUserId = await getUserIdFromSpotifySession(request);
+  const userId = await getUserIdFromSession(request);
   const accessToken = sessionFromSpotifyStrategy?.accessToken;
 
   invariant(
@@ -121,8 +126,20 @@ export async function getSpotifyUserPlaylists(
 
   const res = spotifyPlaylistsSchema.parse(rawRes);
 
+  const items = res.items.filter((item) => item.owner.id === spotifyUserId);
+
+  upsertManySpotifyPlaylists({
+    data: items.map((item) => ({
+      url: item.external_urls.spotify,
+      name: item.name,
+      image: item.images[0].url,
+      userId,
+      playlistId: item.id,
+    })),
+  });
+
   return {
     ...res,
-    items: res.items.filter((item) => item.owner.id === spotifyUserId),
+    items,
   };
 }

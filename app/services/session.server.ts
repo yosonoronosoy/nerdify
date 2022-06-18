@@ -58,28 +58,76 @@ export async function setNewCookie(
   });
 }
 
+type SessionOptions =
+  | {
+      request: Request;
+      data: string | Record<string, string>;
+      session?: undefined;
+    }
+  | {
+      data: string | Record<string, string>;
+      session: Session;
+      request?: undefined;
+    };
+
 export async function setSessionByKey(
-  sessionKey: string,
-  {
-    request,
-    data,
-    session,
-  }:
-    | {
-        request: Request;
-        data: any;
-        session?: undefined;
-      }
-    | { data: any; session: Session; request?: undefined }
+  sessionKey: string | null,
+  { request, data, session }: SessionOptions
 ) {
-  if (!session) {
-    const session = await getSession(request);
-    session.set(sessionKey, data);
-    return session;
+  let scopedSession = session;
+
+  if (!scopedSession) {
+    // impossible condition to hack yelling types
+    if (!request) return session;
+    scopedSession = await getSession(request);
   }
 
-  session.set(sessionKey, data);
-  return session;
+  if (typeof data === "string") {
+    if (sessionKey === null) {
+      throw new Error(
+        "sessionKey must be defined if data provided is a string"
+      );
+    }
+
+    scopedSession.set(sessionKey, data);
+  } else {
+    for (const [key, value] of Object.entries(data)) {
+      scopedSession.set(key, value);
+    }
+  }
+
+  return scopedSession;
+}
+
+export async function commitSession(
+  sessionKey: string | null,
+  { request, data, session }: SessionOptions
+) {
+  const s = !session
+    ? await setSessionByKey(sessionKey, { request, data })
+    : await setSessionByKey(sessionKey, { data, session });
+
+  return { "Set-Cookie": await sessionStorage.commitSession(s) };
+}
+
+export async function getUserPlaylistInfoFromSession(request: Request) {
+  const session = await getSession(request);
+
+  const offsetFromSession = Number(session.get("offset"));
+  const totalPlsFromSession = Number(session.get("totalPlaylists"));
+
+  const offset = !isNaN(offsetFromSession) ? Number(offsetFromSession) : 0;
+  const totalPlaylists = !isNaN(totalPlsFromSession)
+    ? Number(totalPlsFromSession)
+    : 0;
+
+  invariant(typeof offset === "number", "offset must be a number");
+  invariant(
+    typeof totalPlaylists === "number",
+    "totalPlaylists must be a number"
+  );
+
+  return { offset, totalPlaylists };
 }
 
 export async function logout(request: Request) {
@@ -120,7 +168,11 @@ export async function createUserSession({
 
 const FIRST_VISITED_SESSION_KEY = "first-visited";
 type YoutubeService = "channel" | "playlist" | "video";
-export type ServiceKey = `youtube-${YoutubeService}` | "spotify" | "nts" | "discogs";
+export type ServiceKey =
+  | `youtube-${YoutubeService}`
+  | "spotify"
+  | "nts"
+  | "discogs";
 
 function getVisitedSessionKey({
   serviceKey,

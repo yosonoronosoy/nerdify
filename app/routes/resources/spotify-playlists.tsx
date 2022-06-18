@@ -6,19 +6,22 @@ import {
   getSpotifyPlaylistsFromCache,
   setSpotifyPlaylistsInCache,
 } from "~/models/redis.server";
-import { getUserIdFromSession } from "~/services/session.server";
+import { getSpotifyPlaylist } from "~/models/spotify-playlist.server";
+import {
+  commitSession,
+  getUserIdFromSession,
+  getUserPlaylistInfoFromSession,
+} from "~/services/session.server";
 import { getSpotifyUserPlaylists } from "~/services/spotify.server";
 import type {
   SpotifyPlaylistSchema,
   SpotifyPlaylistsSchema,
 } from "~/zod-schemas/spotify-playlists-schema.server";
 
-const timer = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
 export type SpotifyPlaylistLoaderData =
   | {
       kind: "playlist-found";
-      playlist: SpotifyPlaylistSchema;
+      playlist: Omit<SpotifyPlaylistSchema, "owner">;
       totalPlaylists: number;
       offset: number;
     }
@@ -39,8 +42,9 @@ export const loader: LoaderFunction = async ({ request }) => {
     "playlist title query param must be a string"
   );
   const offsetParam = Number(url.searchParams.get("offset"));
-  const offset = !isNaN(offsetParam) ? offsetParam : 50;
+  let offset = !isNaN(offsetParam) ? offsetParam : 0;
 
+  // CHECK CACHE
   const cachedPlaylists = await getPlaylistsFromCache({
     userId,
     offset,
@@ -51,9 +55,30 @@ export const loader: LoaderFunction = async ({ request }) => {
     return json<SpotifyPlaylistLoaderData>(cachedPlaylists);
   }
 
+  // CHECK DB
+  const playlistFromDB = await getPlaylistFromDB({
+    userId,
+    playlistTitle,
+  });
+
+  if (playlistFromDB) {
+    return json<SpotifyPlaylistLoaderData>(playlistFromDB);
+  }
+
   let userPlaylists = await getSpotifyUserPlaylists(request);
+
+  // SET-CACHE
   setSpotifyPlaylistsInCache({ userId, offset, data: userPlaylists });
 
+  // check: if stored playlist total is less than total from API
+  const { offset: sessionOffset, totalPlaylists: sessionTotalPlaylists } =
+    await getUserPlaylistInfoFromSession(request);
+
+  // if not, start from the offset
+  offset =
+    userPlaylists.total <= sessionTotalPlaylists ? sessionOffset : offset + 50;
+
+  // ACCUMULATOR
   const items: SpotifyPlaylistSchema[] = userPlaylists.items;
 
   // this is for the last iteration of the for loop to check if the playlist was found
@@ -68,11 +93,20 @@ export const loader: LoaderFunction = async ({ request }) => {
     const playlistsFound = findPlaylist({
       playlists: lastPlaylists,
       playlistTitle,
-      offset: lastPlaylists.offset,
+      offset,
+      userId,
     });
 
     if (playlistsFound.kind === "playlist-found") {
-      return json<SpotifyPlaylistLoaderData>(playlistsFound);
+      return json<SpotifyPlaylistLoaderData>(playlistsFound, {
+        headers: await commitSession(null, {
+          request,
+          data: {
+            offset: lastPlaylists.offset.toString(),
+            totalPlaylists: lastPlaylists.total.toString(),
+          },
+        }),
+      });
     }
 
     const promises = Array.from({ length: step }).map(async (_, i) => {
@@ -105,9 +139,18 @@ export const loader: LoaderFunction = async ({ request }) => {
     offset: lastPlaylists.offset,
     playlistTitle,
     items,
+    userId,
   });
 
-  return json<SpotifyPlaylistLoaderData>(playlistsData);
+  return json<SpotifyPlaylistLoaderData>(playlistsData, {
+    headers: await commitSession(null, {
+      request,
+      data: {
+        offset: lastPlaylists.offset.toString(),
+        totalPlaylists: lastPlaylists.total.toString(),
+      },
+    }),
+  });
 };
 
 async function getPlaylistsFromCache({
@@ -129,10 +172,42 @@ async function getPlaylistsFromCache({
   }
 
   return findPlaylist({
+    userId,
     playlists: cachedPlaylists,
     playlistTitle,
     offset,
   });
+}
+
+async function getPlaylistFromDB({
+  userId,
+  playlistTitle,
+}: {
+  userId: string;
+  playlistTitle: string;
+}): Promise<SpotifyPlaylistLoaderData | null> {
+  const playlistFromDB = await getSpotifyPlaylist({
+    userId,
+    name: playlistTitle,
+  });
+
+  if (playlistFromDB) {
+    return {
+      kind: "playlist-found",
+      offset: playlistFromDB.user.playlistOffset,
+      totalPlaylists: playlistFromDB.user.totalPlaylists,
+      playlist: {
+        name: playlistFromDB.name,
+        id: playlistFromDB.playlistId,
+        images: [
+          { url: playlistFromDB.image ?? "", width: null, height: null },
+        ],
+        external_urls: { spotify: playlistFromDB.url },
+      },
+    };
+  }
+
+  return null;
 }
 
 function findPlaylist({
@@ -141,12 +216,13 @@ function findPlaylist({
   offset,
   items = playlists.items,
 }: {
+  userId: string;
   playlists: SpotifyPlaylistsSchema;
   playlistTitle: string;
   offset: number;
   items?: SpotifyPlaylistsSchema["items"];
 }): SpotifyPlaylistLoaderData {
-  const found = findPlaylistByTitle(playlistTitle, playlists.items);
+  const found = items.find((playlist) => playlist.name.includes(playlistTitle));
 
   if (found) {
     return {
@@ -163,11 +239,4 @@ function findPlaylist({
     totalPlaylists: playlists.total,
     offset,
   };
-}
-
-function findPlaylistByTitle(
-  title: string,
-  items: SpotifyPlaylistsSchema["items"]
-) {
-  return items.find((playlist) => playlist.name.includes(title));
 }
