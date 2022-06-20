@@ -104,3 +104,19 @@ export async function upsertManySpotifyPlaylists({
     })
   );
 }
+
+export async function getRecentlyViewedSpotifyPlaylists({
+  userId,
+}: {
+  userId: string;
+}) {
+  return prisma.spotifyPlaylist.findMany({
+    where: {
+      userId,
+    },
+    take: 10,
+    orderBy: {
+      lastViewedAt: "desc",
+    },
+  });
+}
