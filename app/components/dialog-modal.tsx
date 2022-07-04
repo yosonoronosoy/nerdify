@@ -1,33 +1,43 @@
 import { Fragment, useRef, useState } from "react";
 import { Dialog, Transition } from "@headlessui/react";
-import { useNavigate } from "@remix-run/react";
+import { useLocation, useNavigate } from "@remix-run/react";
 import { classNames } from "~/utils";
 
 export function DialogModal({
   children,
-  prevUrl,
   formId,
   routeState,
+  prevUrl,
+  buttonSection,
   confirmButtonTitle = "Confirm",
   cancelButtonTitle = "Cancel",
   isConfirm = true,
+  initialOpen = true,
 }: {
   children: React.ReactNode;
-  prevUrl: string;
+  buttonSection?: React.ReactNode;
+  prevUrl?: string;
   isConfirm?: boolean;
   confirmButtonTitle?: string;
   cancelButtonTitle?: string;
   formId?: string;
   routeState?: any;
+  initialOpen?: boolean;
 }) {
   const cancelButtonRef = useRef(null);
   const navigate = useNavigate();
+  const location = useLocation();
 
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(initialOpen);
+
+  if (open !== initialOpen) {
+    console.log({ open, initialOpen });
+    setOpen(initialOpen);
+  }
 
   function handleClose() {
     setOpen(false);
-    navigate(prevUrl, { state: routeState });
+    navigate(prevUrl ?? location.pathname, { state: routeState });
   }
 
   return (
@@ -71,26 +81,28 @@ export function DialogModal({
           >
             <div className="relative inline-block transform overflow-hidden rounded-lg bg-white px-4 pt-5 pb-4 text-left align-bottom shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-4xl sm:p-6 sm:align-middle">
               <div className="relative">{children}</div>
-              <div className="mt-5 sm:mt-6 sm:grid sm:grid-flow-row-dense sm:grid-cols-2 sm:gap-3">
-                <button
-                  className={classNames(
-                    "inline-flex w-full justify-center rounded-md border border-transparent  px-4 py-2 text-base font-medium text-white shadow-sm focus:outline-none focus:ring-2  focus:ring-offset-2 sm:col-start-2 sm:text-sm",
-                    isConfirm
-                      ? "bg-indigo-600 hover:bg-indigo-700  focus:ring-indigo-500"
-                      : "bg-red-600 hover:bg-red-700  focus:ring-red-500"
-                  )}
-                  form={formId}
-                >
-                  {confirmButtonTitle}
-                </button>
-                <button
-                  className="mt-3 inline-flex w-full justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-base font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 sm:col-start-1 sm:mt-0 sm:text-sm"
-                  onClick={handleClose}
-                  ref={cancelButtonRef}
-                >
-                  {cancelButtonTitle}
-                </button>
-              </div>
+              {buttonSection ?? (
+                <div className="mt-5 sm:mt-6 sm:grid sm:grid-flow-row-dense sm:grid-cols-2 sm:gap-3">
+                  <button
+                    className={classNames(
+                      "inline-flex w-full justify-center rounded-md border border-transparent  px-4 py-2 text-base font-medium text-white shadow-sm focus:outline-none focus:ring-2  focus:ring-offset-2 sm:col-start-2 sm:text-sm",
+                      isConfirm
+                        ? "bg-indigo-600 hover:bg-indigo-700  focus:ring-indigo-500"
+                        : "bg-red-600 hover:bg-red-700  focus:ring-red-500"
+                    )}
+                    form={formId}
+                  >
+                    {confirmButtonTitle}
+                  </button>
+                  <button
+                    className="mt-3 inline-flex w-full justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-base font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 sm:col-start-1 sm:mt-0 sm:text-sm"
+                    onClick={handleClose}
+                    ref={cancelButtonRef}
+                  >
+                    {cancelButtonTitle}
+                  </button>
+                </div>
+              )}
             </div>
           </Transition.Child>
         </div>

@@ -14,10 +14,47 @@ if (process.env.NODE_ENV === "production") {
   prisma = new PrismaClient();
 } else {
   if (!global.__db__) {
-    global.__db__ = new PrismaClient();
+    global.__db__ = new PrismaClient({
+      log: [
+        {
+          emit: "event",
+          level: "query",
+        },
+        {
+          emit: "stdout",
+          level: "error",
+        },
+        {
+          emit: "stdout",
+          level: "info",
+        },
+        {
+          emit: "stdout",
+          level: "warn",
+        },
+      ],
+    });
   }
   prisma = global.__db__;
   prisma.$connect();
+
+  // prisma.$on("query", (e) => {
+  //   console.log("Query: " + e.query);
+  //   console.log("Params: " + e.params);
+  //   console.log("Duration: " + e.duration + "ms");
+  // });
+
+  // prisma.$use(async (params, next) => {
+  //   const before = Date.now();
+  //   const result = await next(params);
+  //   const after = Date.now();
+  //
+  //   console.log(
+  //     `Query ${params.model}.${params.action} took ${after - before}ms`
+  //   );
+  //
+  //   return result;
+  // });
 }
 
 export { prisma };

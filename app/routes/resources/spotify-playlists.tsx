@@ -18,16 +18,23 @@ import type {
   SpotifyPlaylistsSchema,
 } from "~/zod-schemas/spotify-playlists-schema.server";
 
+export type OptionRowItem = {
+  id: string;
+  name: string;
+  image: string;
+  url: string;
+};
+
 export type SpotifyPlaylistLoaderData =
   | {
       kind: "playlist-found";
-      playlist: Omit<SpotifyPlaylistSchema, "owner">;
+      playlist: Omit<OptionRowItem, "owner">;
       totalPlaylists: number;
       offset: number;
     }
   | {
       kind: "playlist-not-found";
-      playlists: SpotifyPlaylistSchema[];
+      playlists: OptionRowItem[];
       totalPlaylists: number;
       offset: number;
     };
@@ -199,10 +206,8 @@ async function getPlaylistFromDB({
       playlist: {
         name: playlistFromDB.name,
         id: playlistFromDB.playlistId,
-        images: [
-          { url: playlistFromDB.image ?? "", width: null, height: null },
-        ],
-        external_urls: { spotify: playlistFromDB.url },
+        image: playlistFromDB.image ?? "",
+        url: playlistFromDB.url,
       },
     };
   }
@@ -227,7 +232,12 @@ function findPlaylist({
   if (found) {
     return {
       kind: "playlist-found",
-      playlist: found,
+      playlist: {
+        id: found.id,
+        name: found.name,
+        image: found.images[0].url,
+        url: found.external_urls.spotify,
+      },
       totalPlaylists: playlists.total,
       offset,
     };
@@ -235,7 +245,12 @@ function findPlaylist({
 
   return {
     kind: "playlist-not-found",
-    playlists: items,
+    playlists: items.map((item) => ({
+      id: item.id,
+      name: item.name,
+      image: item.images[0].url,
+      url: item.external_urls.spotify,
+    })),
     totalPlaylists: playlists.total,
     offset,
   };

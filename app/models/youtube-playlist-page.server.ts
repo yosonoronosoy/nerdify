@@ -1,5 +1,7 @@
 import type { YoutubePlaylistPage } from "@prisma/client";
+import invariant from "tiny-invariant";
 import { prisma } from "~/db.server";
+import { getParsedVideo } from "./youtube-video.server";
 
 export async function getYoutubePlaylistPagesByPlaylistId(
   playlistId: YoutubePlaylistPage["youtubePlaylistId"]
@@ -67,30 +69,41 @@ export async function getLastYoutubePlaylistPage() {
 }
 
 export async function getNearestYoutubePlaylistPage({
-  playlistId,
+  youtubePlaylistIdFromDB,
   pageNumber,
 }: {
   pageNumber: number;
-  playlistId: string;
+  youtubePlaylistIdFromDB: string;
 }) {
-  return prisma.youtubePlaylistPage.findFirst({
+  const [p] = await prisma.youtubePlaylistPage.findMany({
     where: {
       pageNumber: {
         lte: pageNumber,
       },
-      youtubePlaylistId: playlistId,
+      youtubePlaylistId: youtubePlaylistIdFromDB,
     },
     orderBy: {
       pageNumber: "desc",
     },
   });
+
+  return p;
 }
 
 export async function createYoutubePlaylistPage(
-  playlistPage: Omit<YoutubePlaylistPage, "id">
+  playlistPage: Omit<YoutubePlaylistPage, "id"> & { youtubePlaylistId: string }
 ) {
+  const { youtubePlaylistId, ...rest } = playlistPage;
+
   return prisma.youtubePlaylistPage.create({
-    data: playlistPage,
+    data: {
+      ...rest,
+      youtubePlaylist: {
+        connect: {
+          id: youtubePlaylistId,
+        },
+      },
+    },
   });
 }
 
@@ -102,6 +115,41 @@ export async function createManyYoutubePlaylistPages({
   return prisma.youtubePlaylistPage.createMany({
     data: pages,
   });
+}
+
+export async function getYoutubePageWithVideos({
+  pageNumber,
+  userId,
+}: {
+  pageNumber: number;
+  userId: string;
+}) {
+  const page = await prisma.youtubePlaylistPage.findFirst({
+    where: {
+      pageNumber,
+    },
+    include: {
+      youtubeVideos: {
+        include: {
+          trackRating: {
+            where: {
+              userId,
+            },
+          },
+          spotifyTracks: true,
+        },
+      },
+    },
+  });
+
+  if (!page) {
+    return null;
+  }
+
+  return {
+    ...page,
+    youtubeVideos: page.youtubeVideos.map((v) => getParsedVideo(v)),
+  };
 }
 
 export async function addOneToAllPages(
@@ -117,4 +165,19 @@ export async function addOneToAllPages(
       },
     },
   });
+}
+
+export async function getYoutubePlaylistPageId({
+  pageNumber,
+}: {
+  pageNumber: number;
+}) {
+  const record = await prisma.youtubePlaylistPage.findUnique({
+    where: {
+      pageNumber,
+    },
+    select: { id: true },
+  });
+
+  return record ? record.id : null;
 }

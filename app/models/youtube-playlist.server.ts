@@ -48,9 +48,10 @@ export function getYoutubePlaylistsByUserId({
 }
 
 export function createYoutubePlaylist(
-  playlist: Omit<YoutubePlaylist, "id" | "status" | "title"> & {
-    title: string;
-  }
+  playlist: Pick<
+    YoutubePlaylist,
+    "title" | "playlistId" | "trackCount" | "image"
+  >
 ) {
   return prisma.youtubePlaylist.create({
     data: {

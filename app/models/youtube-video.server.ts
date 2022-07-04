@@ -12,7 +12,7 @@ import {
 
 export type { YoutubeVideo } from "@prisma/client";
 
-function getVideo(
+export function getParsedVideo(
   video:
     | (YoutubeVideo & {
         spotifyTracks: SpotifyTrack[];
@@ -26,7 +26,7 @@ function getVideo(
 
   return {
     ...video,
-    spotifyTracks: video.spotifyTracks.map((track) => {
+    spotifyTracks: video.spotifyTracks.map((track, idx) => {
       const images = spotifyImagesResponse.safeParse(track.images);
       const artists = spotifyArtistsResponse.safeParse(track.artists);
 
@@ -57,7 +57,7 @@ export async function getYoutubeVideoByVideoId({
     },
   });
 
-  return getVideo(video);
+  return getParsedVideo(video);
 }
 
 export async function getYoutubeVideoByTitle({
@@ -78,7 +78,19 @@ export async function getYoutubeVideoByTitle({
     },
   });
 
-  return getVideo(video);
+  return getParsedVideo(video);
+}
+
+export async function getYoutubeVideosFromPlaylistPage({
+  youtubePlaylistPageIdFromDB,
+}: {
+  youtubePlaylistPageIdFromDB: string;
+}) {
+  return prisma.youtubeVideo.findMany({
+    where: {
+      youtubePlaylistPageId: youtubePlaylistPageIdFromDB,
+    },
+  });
 }
 
 type YoutubeVideoWithoutId = Omit<
@@ -111,7 +123,8 @@ export async function createYoutubeVideo({
   youtubeVideoId,
   spotifyTracks,
   playlistId,
-}: CreateYoutubeVideoInput & { playlistId?: string }) {
+  pageNumber,
+}: CreateYoutubeVideoInput & { playlistId?: string; pageNumber: number }) {
   if (spotifyTracks && spotifyTracks.length > 0) {
     const youtubeVideo = await prisma.youtubeVideo.create({
       data: {
@@ -119,6 +132,11 @@ export async function createYoutubeVideo({
         channelId,
         availability: "PENDING",
         youtubeVideoId,
+        YoutubePlaylistPage: {
+          connect: {
+            pageNumber,
+          },
+        },
         youtubeChannel: {
           connect: {
             channelId,
@@ -148,11 +166,17 @@ export async function createYoutubeVideo({
   });
 }
 
-export async function createManyYoutubeVideos(videos: YoutubeVideo[]) {
-  return prisma.youtubeVideo.createMany({
-    data: videos,
-  });
-}
+// export async function createManyYoutubeVideos({
+//   videos,
+//   youtubePlaylistPageId,
+// }: {
+//   videos: YoutubeVideo[];
+//   youtubePlaylistPageId: string;
+// }) {
+//   return prisma.youtubeVideo.createMany({
+//     data: videos.map((video) => ({ ...video, youtubePlaylistPageId })),
+//   });
+// }
 
 export async function addSpotifyTracksToYoutubeVideo({
   youtubeVideoId,
@@ -253,5 +277,84 @@ export function makeSpotifyTrackUnavailableFromYoutubeVideo({
       },
       availability: "UNAVAILABLE",
     },
+  });
+}
+type TSpotifyTrack = Omit<
+  SpotifyTrack,
+  | "id"
+  | "createdAt"
+  | "updatedAt"
+  | "availability"
+  | "youtubeVideoId"
+  | "artists"
+  | "images"
+> & {
+  artists: SpotifyArtistResponse[];
+  images: SpotifyImageResponse[];
+};
+
+type V = Omit<
+  YoutubeVideo,
+  "id" | "favoriteId" | "youtubeChannelId" | "availability"
+> & { playlistId?: string };
+
+type VideoInput = { [K in keyof V]: NonNullable<V[K]> };
+
+export type TVid =
+  | (VideoInput & { availability: "UNAVAILABLE"; spotifyTracks?: undefined })
+  | (VideoInput & {
+      availability: "PENDING";
+      spotifyTracks: TSpotifyTrack[];
+    });
+
+export function createManyYoutubeVideos(ytVideos: Promise<TVid | null>[]) {
+  return prisma.$transaction(async (db) => {
+    for await (const v of ytVideos) {
+      if (!v) {
+        continue;
+      }
+      const { youtubePlaylistPageId, playlistId, ...video } = v;
+
+      if (video.availability === "UNAVAILABLE") {
+        await db.youtubeVideo.create({
+          data: {
+            ...video,
+            YoutubePlaylistPage: {
+              connect: {
+                id: youtubePlaylistPageId,
+              },
+            },
+          },
+        });
+        continue;
+      }
+
+      const result = await db.youtubeVideo.create({
+        data: {
+          ...video,
+          YoutubePlaylistPage: {
+            connect: {
+              id: youtubePlaylistPageId,
+            },
+          },
+          youtubePlaylists: {
+            connect: {
+              playlistId,
+            },
+          },
+          spotifyTracks: {
+            createMany: {
+              data: video.spotifyTracks.map((item) => {
+                return {
+                  ...item,
+                };
+              }),
+            },
+          },
+        },
+      });
+
+      console.log({ result });
+    }
   });
 }

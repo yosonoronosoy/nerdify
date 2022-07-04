@@ -43,8 +43,10 @@ export async function searchTrack({
 
   const querystring = getQuerystring({
     q: `track:${track} artist:${artist}`,
+    // q: `${artist} ${track}`,
     type: "track",
-  });
+    limit: "50",
+  })
   const spotifyApiUrl = `${searchUrl}?${querystring}`;
 
   const sessionFromSpotifyStrategy = await spotifyStrategy.getSession(request);

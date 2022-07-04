@@ -114,20 +114,30 @@ export default function ConfirmTrackModal() {
     () => data?.spotifyTracks ?? [],
     [data?.spotifyTracks]
   );
-  const [filteredTracks, setFilteredTracks] = useState(spotifyTracks);
+  // WARNING: CHECK IF THE EFFECT IS NEEDED
+  // const [filteredTracks, setFilteredTracks] = useState(spotifyTracks);
 
-  useEffect(() => {
-    const filtered = spotifyTracks.filter((track) => {
-      return (
-        track.name.toLowerCase().includes(filterQuery.toLowerCase()) ||
-        track.artists.some((artist) =>
-          artist.name.toLowerCase().includes(filterQuery.toLowerCase())
-        )
-      );
-    });
+  const filteredTracks = spotifyTracks.filter((track) => {
+    return (
+      track.name.toLowerCase().includes(filterQuery.toLowerCase()) ||
+      track.artists.some((artist) =>
+        artist.name.toLowerCase().includes(filterQuery.toLowerCase())
+      )
+    );
+  });
 
-    setFilteredTracks(filtered);
-  }, [filterQuery, spotifyTracks]);
+  // useEffect(() => {
+  //   const filtered = spotifyTracks.filter((track) => {
+  //     return (
+  //       track.name.toLowerCase().includes(filterQuery.toLowerCase()) ||
+  //       track.artists.some((artist) =>
+  //         artist.name.toLowerCase().includes(filterQuery.toLowerCase())
+  //       )
+  //     );
+  //   });
+  //
+  //   setFilteredTracks(filtered);
+  // }, [filterQuery, spotifyTracks]);
 
   const prevUrl = `${prev}?page=${page}`;
   const isConfirm = Boolean(selected);
@@ -143,7 +153,9 @@ export default function ConfirmTrackModal() {
         <Search.Input
           placeholder="Filter tracks"
           defaultValue={filterQuery}
-          onChange={(e) => setFilterQuery(e.target.value)}
+          onChange={(e) => {
+            setFilterQuery(e.target.value);
+          }}
           className="rounded-md"
         />
       </Search>

@@ -1,5 +1,5 @@
 import type { LinksFunction, MetaFunction } from "@remix-run/node";
-import type { LoaderFunction } from "@remix-run/server-runtime";
+import type { ActionFunction, LoaderFunction } from "@remix-run/server-runtime";
 import type { Session } from "remix-auth-spotify";
 import {
   Links,
@@ -12,11 +12,12 @@ import {
   useLoaderData,
   Form,
   useLocation,
+  useFetcher,
 } from "@remix-run/react";
 import { YoutubeIcon } from "~/icons/youtube";
 import { RadioIcon } from "~/icons/radio-icon";
 import { ClipboardIcon } from "~/icons/clipboard-icon";
-import { Fragment, useState } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import { Dialog, Transition } from "@headlessui/react";
 import { MenuIcon, XIcon } from "@heroicons/react/outline";
 import {
@@ -26,6 +27,8 @@ import {
 
 import tailwindStylesheetUrl from "./styles/tailwind.css";
 import DiscogsIcon from "./icons/discogs-icon";
+import { DialogModal } from "./components/dialog-modal";
+import { commitSession, setSessionByKey } from "./services/session.server";
 
 export const links: LinksFunction = () => {
   return [{ rel: "stylesheet", href: tailwindStylesheetUrl }];
@@ -59,21 +62,29 @@ export const loader: LoaderFunction = async ({ request }) => {
     return null;
   }
 
-  if (Date.now() > spotifySession.expiresAt) {
-    await setSessionWithNewAccessToken({ request, spotifySession });
-  }
-
   return spotifySession;
 };
 
-/*
- * TODO: refactor components
- * TODO: add silent authentication: https://github.com/kentcdodds/advanced-remix/blob/main/final/06-imperative-mutations/app/root.tsx
- * */
+export const action: ActionFunction = async ({ request }) => {
+  const intent = (await request.formData()).get("intent");
+
+  if (intent !== "dontAskForLogoutAgain") {
+    return null;
+  }
+
+  return await commitSession("dontAskForLogoutAgain", {
+    request,
+    data: "true",
+  });
+};
+
+type LoaderData = (Session & { dontAskAgain?: "true" }) | null | undefined;
+
 export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const data = useLoaderData<Session | null | undefined>();
+  const data = useLoaderData<LoaderData>();
   const user = data?.user;
+  const dontAskAgain = data?.dontAskAgain;
 
   const location = useLocation();
 
@@ -289,7 +300,10 @@ export default function App() {
                 </Form>
               </div>
             ) : (
-              <Outlet />
+              <>
+                <RefreshTimer dontAskAgain={dontAskAgain} />
+                <Outlet />
+              </>
             )}
           </div>
         </div>
@@ -298,5 +312,97 @@ export default function App() {
         <LiveReload />
       </body>
     </html>
+  );
+}
+
+function RefreshTimer({ dontAskAgain }: { dontAskAgain: "true" | undefined }) {
+  const [status, setStatus] = useState<"idle" | "show-modal">("idle");
+
+  const location = useLocation();
+  const fetcher = useFetcher();
+
+  const refreshTime = 5000;
+  const modalTime = 2000;
+
+  // const refreshTime = 1000 * 60 * 60;
+  // const modalTime = refreshTime - 1000 * 60 * 2;
+
+  const modalTimer = useRef<ReturnType<typeof setTimeout>>();
+  const refreshTimer = useRef<ReturnType<typeof setTimeout>>();
+
+  const logout = () => {
+    setStatus("idle");
+    fetcher.submit(
+      { redirectTo: location.pathname },
+      { method: "post", action: "/logout" }
+    );
+  };
+
+  const refresh = useCallback(() => {
+    fetcher.submit(
+      { redirectTo: location.pathname },
+      { method: "post", action: "/resources/refresh-spotify-token" }
+    );
+  }, [fetcher, location.pathname]);
+
+  const cleanupTimers = useCallback(() => {
+    // @ts-ignore
+    clearTimeout(modalTimer.current);
+    // @ts-ignore
+    clearTimeout(refreshTimer.current);
+  }, []);
+
+  // const startedAt = useRef(new Date().getTime());
+
+  const resetTimers = useCallback(() => {
+    cleanupTimers();
+    modalTimer.current = setTimeout(() => {
+      if (!dontAskAgain) {
+        setStatus("show-modal");
+      }
+    }, modalTime);
+
+    refreshTimer.current = setTimeout(() => {
+      refresh();
+    }, refreshTime);
+  }, [cleanupTimers, refresh, refreshTime, modalTime, dontAskAgain]);
+
+  useEffect(() => resetTimers(), [resetTimers, location.key]);
+  useEffect(() => cleanupTimers, [cleanupTimers]);
+
+  function closeModal() {
+    setStatus("idle");
+    resetTimers();
+  }
+
+  const openDialog = status === "show-modal";
+  return (
+    <DialogModal
+      buttonSection={
+        <ButtonSection>
+          <button onClick={closeModal}>Cancel</button>
+          <button onClick={logout}>Logout</button>
+        </ButtonSection>
+      }
+      initialOpen={openDialog}
+    >
+      <Form method="post">
+        <button
+          onClick={() => setStatus("idle")}
+          name="intent"
+          value="dontAskForLogoutAgain"
+        >
+          Don't ask for logout again
+        </button>
+      </Form>
+    </DialogModal>
+  );
+}
+
+function ButtonSection({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="mt-5 sm:mt-6 sm:grid sm:grid-flow-row-dense sm:grid-cols-2 sm:gap-3">
+      {children}
+    </div>
   );
 }

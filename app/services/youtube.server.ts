@@ -5,19 +5,26 @@ import {
   setCacheYoutubePlaylistPage,
 } from "~/models/redis.server";
 import { getTrackRatingByYoutubeVideoId } from "~/models/track-rating.server";
-import { getYoutubeChannel } from "~/models/youtube-channel.server";
+import {
+  getManyYoutubeChannels,
+  getYoutubeChannel,
+} from "~/models/youtube-channel.server";
 import {
   createYoutubePlaylistPage,
   getNearestYoutubePlaylistPage,
   addOneToAllPages,
   getYoutubePlaylistPageByPageToken,
+  getYoutubePageWithVideos,
 } from "~/models/youtube-playlist-page.server";
 import {
   createYoutubePlaylist,
   getYoutubePlaylistByPlaylistId,
   updateYoutubePlaylistCount,
 } from "~/models/youtube-playlist.server";
-import { getYoutubeVideoByTitle } from "~/models/youtube-video.server";
+import {
+  getYoutubeVideoByTitle,
+  getYoutubeVideosFromPlaylistPage,
+} from "~/models/youtube-video.server";
 import { youtubeChannelListSchema } from "~/zod-schemas/youtube-channels-schema.server";
 import type { YoutubePlaylistItems } from "~/zod-schemas/youtube-playlist-schema.server";
 import { youtubePlaylistResponseSchema } from "~/zod-schemas/youtube-playlist-schema.server";
@@ -163,14 +170,14 @@ export async function queryPlaylistItemFromPageRange({
 
   const nearestPageToLast = await getNearestYoutubePlaylistPage({
     pageNumber: to,
-    playlistId,
+    youtubePlaylistIdFromDB,
   });
 
   const nearestPageNumberToLast = nearestPageToLast?.pageNumber ?? from;
-  let pageToken = nearestPageToLast?.pageToken;
+  let pageToken: string | undefined = nearestPageToLast?.pageToken;
 
   let playlistItemsPage: YoutubePlaylistItems = await fetchYoutubePlaylistPage({
-    page: from,
+    page: nearestPageNumberToLast,
     playlistId,
     pageToken,
     youtubePlaylistIdFromDB,
@@ -226,17 +233,35 @@ export async function searchChannel(
     items: ytResponse.items.filter(filterChannel),
   };
 
-  const finalItems = await Promise.all(
-    filteredResponse.items.map(async (item) => {
-      const channelId = item.id.channelId;
-      const channel = await getYoutubeChannel({ channelId });
+  const channelsFromDB = await getManyYoutubeChannels({
+    channelIds: filteredResponse.items.map((item) => ({
+      channelId: item.id.channelId,
+    })),
+  });
 
-      return {
-        ...item,
-        channelStatus: channel?.status ?? "UNPROCESSED",
-      };
-    })
-  );
+  // const finalItems = await Promise.all(
+  //   filteredResponse.items.map(async (item) => {
+  //     const channelId = item.id.channelId;
+  //     const channel = await getYoutubeChannel({ channelId });
+  //
+  //     return {
+  //       ...item,
+  //       channelStatus: channel?.status ?? "UNPROCESSED",
+  //     };
+  //   })
+  // );
+
+  const finalItems = filteredResponse.items.map((item) => {
+    const channelId = item.id.channelId;
+    const channel = channelsFromDB.find(
+      (channel) => channel.channelId === channelId
+    );
+
+    return {
+      ...item,
+      channelStatus: channel?.status ?? "UNPROCESSED",
+    };
+  });
 
   return { ...filteredResponse, items: finalItems };
 }
@@ -287,7 +312,7 @@ export async function getPlaylistResponse({
   nextPageToken?: string;
   pageNumber?: number;
   youtubePlaylistIdFromDB: string;
-  userId?: string;
+  userId: string;
 }) {
   let videosResponse: YoutubePlaylistItems;
 
@@ -319,44 +344,42 @@ export async function getPlaylistResponse({
     }
   }
 
+  // TODO: GET PAGE FROM DB AND ITS VIDEOS
+  const ytPage = await getYoutubePageWithVideos({
+    pageNumber: pageNumber ?? 0,
+    userId,
+  });
+
   const items = await Promise.all(
     videosResponse.items.map(async (item) => {
-      const track = await getYoutubeVideoByTitle({
-        title: item.snippet.title,
-        userId,
-      });
+      const video = ytPage?.youtubeVideos.find(
+        (vid) => vid?.youtubeVideoId === item.snippet.resourceId.videoId
+      );
 
       let spotifyAvailability: SpotifyAvailability;
-      let trackRating: TrackRating | undefined;
-      if (!track) {
+      if (!video) {
         spotifyAvailability = { kind: "UNCHECKED" };
-        trackRating =
-          (await getTrackRatingByYoutubeVideoId({
-            userId: userId ?? "",
-            youtubeVideoIdFromAPI: item.snippet.resourceId.videoId,
-          })) ?? undefined;
       } else {
-        spotifyAvailability = { kind: track.availability };
-        trackRating =
-          track.trackRating.length > 0 ? track.trackRating[0] : undefined;
+        spotifyAvailability = { kind: video.availability };
       }
+
       let percentage: number | null = null;
-      if (track?.availability === "PENDING") {
+      if (video?.availability === "PENDING") {
         const titleLength = item.snippet.title.length;
 
-        const leven = track.spotifyTracks[0].levenshteinScore ?? titleLength;
+        const leven = video.spotifyTracks[0].levenshteinScore ?? titleLength;
         percentage = 100 - (leven / titleLength) * 100;
       }
 
-      const isTrack = track && track.spotifyTracks[0];
+      const isTrack = video && video.spotifyTracks[0];
       const closeMatchSpotifyTitle = isTrack
-        ? `${track.spotifyTracks[0].artists.map((a) => a.name).join(", ")} - ${
-            track.spotifyTracks[0].name
+        ? `${video.spotifyTracks[0].artists.map((a) => a.name).join(", ")} - ${
+            video.spotifyTracks[0].name
           }`
         : null;
 
       const closeMatchSpotifyTrackId = isTrack
-        ? track.spotifyTracks[0].trackId
+        ? video.spotifyTracks[0].trackId
         : null;
 
       return {
@@ -365,7 +388,7 @@ export async function getPlaylistResponse({
         closeMatchSpotifyTitle,
         closeMatchSpotifyTrackId,
         closeMatchPercentage: percentage,
-        trackRating,
+        trackRating: video?.trackRating[0],
       };
     })
   );
@@ -464,6 +487,7 @@ export async function getPlaylistData({
     });
   }
 
+  // FIX: this method is too wasteful, use playlistPage hasMany ytVideos relationship instead
   const extendedResponse = await getPlaylistResponse({
     userId: userIdFromDB,
     playlistId,

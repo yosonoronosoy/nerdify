@@ -1,8 +1,13 @@
 import type { ActionFunction } from "@remix-run/server-runtime";
+import {
+  createManyYoutubeVideos,
+  TVid,
+  YoutubeVideo,
+} from "~/models/youtube-video.server";
+import type { SpotifyTrack } from "~/models/spotify.server";
 import invariant from "tiny-invariant";
 import { redirect } from "@remix-run/node";
 import {
-  createYoutubeVideo,
   makeSpotifyTrackAvailableFromYoutubeVideo,
   makeSpotifyTrackUnavailableFromYoutubeVideo,
 } from "~/models/youtube-video.server";
@@ -11,10 +16,11 @@ import {
   spotifyStrategy,
 } from "~/services/auth.server";
 import { searchTrack } from "~/services/spotify.server";
-import leven from 'leven';
+import leven from "leven";
+import { getYoutubePlaylistPageId } from "~/models/youtube-playlist-page.server";
+import { prisma } from "~/db.server";
 
 export const action: ActionFunction = async ({ request }) => {
-  console.log("============ HIT ============");
   const spotifySession = await spotifyStrategy.getSession(request);
 
   if (!spotifySession) {
@@ -31,6 +37,11 @@ export const action: ActionFunction = async ({ request }) => {
     ...dataEntries
   } = Object.fromEntries(formData);
   invariant(typeof prevUrl === "string", "prevUrl must be a string");
+
+  console.log({ prevUrl });
+  const pageNumber = Number(
+    new URL(`http://localhost:3000/${prevUrl}`).searchParams.get("page") ?? "1"
+  );
 
   // TODO: maybe change this to a switch statement with intents
   if (typeof makeAvailable === "string") {
@@ -61,7 +72,19 @@ export const action: ActionFunction = async ({ request }) => {
     });
   }
 
-  const promiseCallback = async ([inputName, searchQuery]: [
+  const youtubePlaylistPageId = await getYoutubePlaylistPageId({ pageNumber });
+
+  invariant(
+    typeof youtubePlaylistPageId === "string",
+    "youtubePlaylistPageId is required"
+  );
+
+  type PromiseCallback = ([inputName, searchQuery]: [
+    string,
+    FormDataEntryValue
+  ]) => Promise<TVid | null>;
+
+  const promiseCallback: PromiseCallback = async ([inputName, searchQuery]: [
     string,
     FormDataEntryValue
   ]) => {
@@ -69,6 +92,8 @@ export const action: ActionFunction = async ({ request }) => {
       request: request,
       searchQuery: searchQuery.toString(),
     });
+    console.log({ res, searchQuery });
+
     invariant(typeof inputName === "string", "inputName must be a string");
     const [channelId, videoId] = inputName.split(":");
 
@@ -92,22 +117,26 @@ export const action: ActionFunction = async ({ request }) => {
     }
 
     if (res.kind === "error") {
-      return createYoutubeVideo({
+      console.log("=========== ERROR =====================");
+      return {
         title: searchQuery.toString(),
         channelId,
         youtubeVideoId: videoId,
         availability: "UNAVAILABLE",
-      });
+        youtubePlaylistPageId,
+      };
     }
 
     invariant(typeof playlistId === "string", "playlistId is required");
     const title = searchQuery.toString();
-    return createYoutubeVideo({
+
+    return {
       title,
       channelId,
       youtubeVideoId: videoId,
       availability: "PENDING",
       playlistId,
+      youtubePlaylistPageId,
       spotifyTracks: res.data.map((item) => ({
         name: item.name,
         trackId: item.id,
@@ -122,12 +151,12 @@ export const action: ActionFunction = async ({ request }) => {
           }`
         ),
       })),
-    });
+    };
   };
 
-  const spotifyTracks = Object.entries(dataEntries).map(promiseCallback);
+  const ytVideos = Object.entries(dataEntries).map(promiseCallback);
 
-  await Promise.all(spotifyTracks);
+  await createManyYoutubeVideos(ytVideos);
 
   return redirect(prevUrl, { status: 302 });
 };

@@ -82,6 +82,7 @@ export const action: ActionFunction = async ({ params, request }) => {
   });
 
   await upsertTrackRatingForYoutubeVideo({
+    // FIX: get userId from session
     userIdFromDB: user.id,
     youtubeVideoIdFromAPI: params.videoId,
     rating: !Number.isNaN(rating) ? rating : undefined,

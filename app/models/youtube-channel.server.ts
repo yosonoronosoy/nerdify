@@ -11,6 +11,18 @@ export function getYoutubeChannel({
   });
 }
 
+export function getManyYoutubeChannels({
+  channelIds,
+}: {
+  channelIds: Pick<YoutubeChannel, "channelId">[];
+}) {
+  return prisma.youtubeChannel.findMany({
+    where: {
+      OR: channelIds,
+    },
+  });
+}
+
 export async function getYoutubeChannelsByUserId({
   userId,
   sort,

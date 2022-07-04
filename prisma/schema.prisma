@@ -4,7 +4,8 @@ datasource db {
 }
 
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["interactiveTransactions"]
 }
 
 enum Status {
@@ -77,9 +78,10 @@ model YoutubePlaylist {
 model YoutubePlaylistPage {
   id                String           @id @default(cuid())
   pageToken         String           @unique
-  pageNumber        Int
+  pageNumber        Int              @unique
   youtubePlaylist   YoutubePlaylist? @relation(fields: [youtubePlaylistId], references: [id])
   youtubePlaylistId String?
+  youtubeVideos     YoutubeVideo[]
 }
 
 model YoutubeChannel {
@@ -137,18 +139,20 @@ model TrackRating {
 }
 
 model YoutubeVideo {
-  id               String            @id @default(cuid())
-  title            String
-  channelId        String
-  youtubeVideoId   String            @unique
-  spotifyTracks    SpotifyTrack[]
-  availability     Availability
-  trackRating      TrackRating[]
-  favorite         Favorite?         @relation(fields: [favoriteId], references: [id])
-  favoriteId       String?
-  youtubeChannel   YoutubeChannel?   @relation(fields: [youtubeChannelId], references: [id])
-  youtubeChannelId String?
-  youtubePlaylists YoutubePlaylist[]
+  id                    String               @id @default(cuid())
+  title                 String
+  channelId             String
+  youtubeVideoId        String               @unique
+  spotifyTracks         SpotifyTrack[]
+  availability          Availability
+  trackRating           TrackRating[]
+  favorite              Favorite?            @relation(fields: [favoriteId], references: [id])
+  favoriteId            String?
+  youtubeChannel        YoutubeChannel?      @relation(fields: [youtubeChannelId], references: [id])
+  youtubeChannelId      String?
+  youtubePlaylists      YoutubePlaylist[]
+  YoutubePlaylistPage   YoutubePlaylistPage? @relation(fields: [youtubePlaylistPageId], references: [id])
+  youtubePlaylistPageId String?
 }
 
 model SpotifyTrack {

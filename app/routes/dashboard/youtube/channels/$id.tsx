@@ -15,6 +15,7 @@ const getPageNumber = (searchParams: URLSearchParams) =>
   Number(searchParams.get("page") ?? "1");
 
 export const loader: LoaderFunction = async ({ params, request }) => {
+
   if (!params.id) {
     return null;
   }
