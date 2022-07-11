@@ -10,15 +10,17 @@ import {
   Form,
   Link,
   Outlet,
+  useFetcher,
   useLocation,
   useSearchParams,
   useTransition,
 } from "@remix-run/react";
-import { Fragment, useLayoutEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Spinner } from "~/icons/spinner";
 import type { ExtendedResponse } from "~/services/youtube.server";
 import { classNames, formatPercentage } from "~/utils";
 import { PrimaryButton, SecondaryButton } from "./buttons";
+import { useDebounce } from "./hooks/use-debounce";
 import Pagination from "./pagination";
 import { ProgressBar } from "./progress-bar";
 
@@ -38,12 +40,15 @@ export default function TracksTable({
   totalItems,
   playlistId,
   resource,
+  scrollTop = 0,
 }: {
   tracks: ExtendedResponse["items"];
+  resource: Resource;
   totalItems?: number;
   playlistId?: string;
-  resource: Resource;
+  scrollTop?: number;
 }) {
+  const fetcher = useFetcher();
   const [searchParams] = useSearchParams();
   const location = useLocation();
   const prevUrl = location.pathname;
@@ -55,6 +60,7 @@ export default function TracksTable({
   const [checked, setChecked] = useState(false);
   const [indeterminate, setIndeterminate] = useState(false);
   const [selectedTracks, setSelectedTracks] = useState<any[]>([]);
+  const [scrollTo, setScrollTo] = useState(scrollTop);
 
   useSSRLayoutEffect(() => {
     const isIndeterminate =
@@ -67,6 +73,60 @@ export default function TracksTable({
     }
   }, [selectedTracks, tracks.length]);
 
+  const debouncedScrollTo = useDebounce(scrollTo, 300);
+
+  // FIX: INFINITE LOOP
+  // useEffect(() => {
+  //   console.log({
+  //     fetcherState: fetcher.state,
+  //     fetcherType: fetcher.type,
+  //     topOfUseEffect: true,
+  //   });
+  //
+  //   if (fetcher.state === "idle") {
+  //     console.log({
+  //       fetcherState: fetcher.state,
+  //       fetcherType: fetcher.type,
+  //       debouncedScrollTo: true,
+  //     });
+  //     fetcher.submit(
+  //       { scrollTo: debouncedScrollTo.toString(), intent: "scroll" },
+  //       {
+  //         method: "post",
+  //         action: location.pathname,
+  //       }
+  //     );
+  //   }
+  // }, [debouncedScrollTo, fetcher, location.pathname]);
+
+  useEffect(() => {
+    const tableEl = document.getElementById(
+      "bulk-process-form"
+    ) as HTMLFormElement;
+
+    function handleScroll() {
+      setScrollTo(tableEl.scrollTop ?? 0);
+    }
+
+    if (tableEl) {
+      tableEl.addEventListener("scroll", handleScroll);
+    }
+
+    return () => {
+      if (tableEl) {
+        tableEl.removeEventListener("scroll", handleScroll);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    const tableEl = document.getElementById("table");
+
+    if (tableEl) {
+      tableEl.scrollTop = scrollTop;
+    }
+  }, [scrollTop]);
+
   function toggleAll() {
     setSelectedTracks(checked || indeterminate ? [] : tracks);
     setChecked(!checked && !indeterminate);
@@ -78,15 +138,6 @@ export default function TracksTable({
       <Outlet />
       <Form method="post" action={`/resources/youtube/playlist`}>
         <input name="prevUrl" value={prevUrl} hidden readOnly />
-        {/* FIX: refresh token should be done automatically */}
-        <button
-          className="inline-flex items-center rounded border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-30"
-          name="_action"
-          value="refreshToken"
-          disabled={transition.state === "submitting"}
-        >
-          Refresh Token
-        </button>
       </Form>
       <div className="isolate mt-8 flex flex-col">
         <div className="-my-2 -mx-4 overflow-x-auto sm:-mx-6 lg:-mx-8">
@@ -101,6 +152,7 @@ export default function TracksTable({
               >
                 <input name="prevUrl" value={prevUrl} hidden readOnly />
                 <input hidden name="playlistId" value={playlistId} readOnly />
+                <input hidden name="scrollTo" value={scrollTo} readOnly />
                 <table className="relative min-w-full table-fixed divide-y divide-gray-300 ">
                   <thead className="sticky top-0 z-10  bg-gray-50">
                     {selectedTracks.length > 0 && (
@@ -160,6 +212,7 @@ export default function TracksTable({
                         isSelected={selectedTracks.includes(track)}
                         resource={resource}
                         isLast={idx > tracks.length - 3}
+                        scrollTo={scrollTo}
                         onCheckboxChange={(e) =>
                           setSelectedTracks(
                             e.target.checked
@@ -193,6 +246,7 @@ function Row({
   onCheckboxChange,
   // WARNING: is this prop drilling?
   resource,
+  scrollTo = 0,
   isLast = false,
 }: {
   track: ExtendedResponse["items"][number];
@@ -201,6 +255,7 @@ function Row({
   resource: Resource;
   currentPage?: number;
   isLast?: boolean;
+  scrollTo?: number;
 }) {
   const transition = useTransition();
   const location = useLocation();
@@ -300,6 +355,7 @@ function Row({
                               prevUrl: location.pathname,
                               resourceId: resource.resourceId,
                               resourceType: resource.resourceType,
+                              scrollTo: scrollTo,
                             }}
                             to={`confirm-track/${track.snippet.resourceId.videoId}?${searchParams}`}
                           >

@@ -11,7 +11,7 @@ import {
 } from "@remix-run/react";
 import type { LoaderFunction } from "@remix-run/server-runtime";
 import { json } from "@remix-run/server-runtime";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { DialogModal } from "~/components/dialog-modal";
 import type { SpotifyPlaylist } from "~/models/spotify-playlist.server";
 import { getRecentlyViewedSpotifyPlaylists } from "~/models/spotify-playlist.server";
@@ -70,6 +70,7 @@ export default function ConfirmTrackModal() {
   const prevUrl = isState(state) ? state.prevUrl : "";
   const resourceId = isState(state) ? state.resourceId : "";
   const resourceType = isState(state) ? state.resourceType : "";
+  const [progress, setProgress] = useState(0);
 
   // const [searchParams] = useSearchParams();
   // const page = searchParams.get("page") ?? "1";
@@ -86,6 +87,13 @@ export default function ConfirmTrackModal() {
   // const prevUrl = `${prev}?page=${page}`;
   const isConfirm = Boolean(selected);
 
+  useEffect(() => {
+    let eventSource = new EventSource("/resources/sse/spotify-playlists");
+    eventSource.addEventListener("message", (event) => {
+      setProgress(event.data || "unknown");
+    });
+  }, []);
+
   return (
     <DialogModal
       prevUrl={prevUrl}
@@ -97,6 +105,14 @@ export default function ConfirmTrackModal() {
         <ClockIcon className="h-6 w-6 text-yellow-600" aria-hidden="true" />
       </div>
       <div className="mt-3 text-center sm:mt-5">
+        <h1 className="text-lg font-bold">progress so far {progress} </h1>
+      </div>
+    </DialogModal>
+  );
+}
+
+/**
+ * description
         <Dialog.Title
           as="h3"
           className="text-lg font-medium leading-6 text-gray-900"
@@ -109,27 +125,28 @@ export default function ConfirmTrackModal() {
             placeholder="Enter playlist name or playlist id"
           />
 
-          {/* Render saved playlists or the result from the search */}
           <div className="mt-8 space-y-2">
             <h2 className="text-left text-gray-800">
               Recently viewed playlists
             </h2>
+            <button
+              className="rounded-lg bg-indigo-700 px-6 py-2 text-sm text-indigo-50 hover:bg-indigo-600 active:bg-indigo-700"
+              type="button"
+              onClick={() => {
+                console.log("clicked");
+                fetcher.load("/resources/spotify-playlists");
+              }}
+            >
+              {fetcher.state === "loading"
+                ? "Loading..."
+                : "Test playlist endpoint"}
+            </button>
             <Form
               reloadDocument
               method="post"
               id="confirm-track-form"
               // action={`/resources/youtube/confirm-track/${videoId}`}
             >
-              {/* <input name="prevUrl" type="hidden" value={prevUrl} /> */}
-              {/* <input name="resourceId" type="hidden" value={resourceId} /> */}
-              {/* <input name="resourceType" type="hidden" value={resourceType} /> */}
-              {/* <input */}
-              {/*   hidden */}
-              {/*   name="_action" */}
-              {/*   readOnly */}
-              {/*   value={selected ? "confirm" : "set-unavailable"} */}
-              {/* /> */}
-              {/* <input hidden name="page" value={searchParams.get("page") ?? "1"} /> */}
               <OptionGroup label="Found Spotify Tracks">
                 {items.map((item, trackIdx) => (
                   <OptionRow key={item.id} item={item} index={trackIdx} />
@@ -138,10 +155,8 @@ export default function ConfirmTrackModal() {
             </Form>
           </div>
         </div>
-      </div>
-    </DialogModal>
-  );
-}
+ *
+ */
 
 const testItems = [
   {

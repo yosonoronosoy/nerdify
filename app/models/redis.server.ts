@@ -3,6 +3,10 @@ import {
   SpotifyPlaylistsSchema,
   spotifyPlaylistsSchema,
 } from "~/zod-schemas/spotify-playlists-schema.server";
+import {
+  youtubeChannelListSchema,
+  YoutubeChannelListSchema,
+} from "~/zod-schemas/youtube-channels-schema.server";
 import type { YoutubePlaylistItems } from "~/zod-schemas/youtube-playlist-schema.server";
 import { youtubePlaylistItemsSchema } from "~/zod-schemas/youtube-playlist-schema.server";
 
@@ -10,8 +14,12 @@ type YoutubePlaylistId = string;
 type YoutubePage = number | "*";
 type YoutubePageCacheKey = `youtube-page:${YoutubePlaylistId}:${YoutubePage}`;
 type UserId = string;
+
 type SpotifyOffset = number;
 type SpotifyPlaylistKey = `spotify-playlists:${UserId}:${SpotifyOffset}`;
+
+type YoutubeChannelId = string;
+type YoutubeChannelKey = `youtube-channel:${YoutubeChannelId}`;
 
 const REDIS_KEYS = {
   getYoutubePageKey: (
@@ -22,6 +30,8 @@ const REDIS_KEYS = {
     userId: string,
     offset: SpotifyOffset
   ): SpotifyPlaylistKey => `spotify-playlists:${userId}:${offset}`,
+  getYoutubeChannelInfoKey: (channelId: YoutubePlaylistId): YoutubeChannelKey =>
+    `youtube-channel:${channelId}`,
 };
 
 export async function getCachedYoutubePlaylistPage({
@@ -121,4 +131,24 @@ export async function setSpotifyPlaylistsInCache({
 }) {
   const key = REDIS_KEYS.getSpotifyPlaylistKey(userId, offset);
   return redis.set(key, JSON.stringify(data), "EX", 60 * 60 * 2);
+}
+
+export async function getYoutubeChannelInfoFromCache(channelId: string) {
+  const key = REDIS_KEYS.getYoutubeChannelInfoKey(channelId);
+  const cacheRes = await redis.get(key);
+
+  if (!cacheRes) {
+    return null;
+  }
+
+  // WARNING: parsing 2 times???
+  return youtubeChannelListSchema.parse(JSON.parse(cacheRes));
+}
+
+export async function setYoutubeChannelInfoInCache(
+  channelResponse: YoutubeChannelListSchema
+) {
+  const key = REDIS_KEYS.getYoutubeChannelInfoKey(channelResponse.items[0].id);
+
+  return redis.set(key, JSON.stringify(channelResponse), "EX", 60 * 60 * 2);
 }

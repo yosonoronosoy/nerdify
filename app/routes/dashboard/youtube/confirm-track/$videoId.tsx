@@ -18,6 +18,7 @@ import {
   makeSpotifyTrackAvailableFromYoutubeVideo,
   makeSpotifyTrackUnavailableFromYoutubeVideo,
 } from "~/models/youtube-video.server";
+import { classNames } from "~/utils";
 
 // FIX: LEAVE THIS AS A RESOURCE ROUTE
 
@@ -82,9 +83,6 @@ export const action: ActionFunction = async ({ request, params }) => {
   return null;
 };
 
-function classNames(...args: string[]) {
-  return args.filter(Boolean).join(" ");
-}
 
 type State = { prevUrl: string; resourceId: string; resourceType: string };
 function isState(state: unknown): state is State {
@@ -148,6 +146,8 @@ export default function ConfirmTrackModal() {
       isConfirm={isConfirm}
       formId="confirm-track-form"
       confirmButtonTitle={isConfirm ? "Confirm" : "Set Track as Unavailable"}
+      heading="Confirm Track"
+      subHeading={data?.title}
     >
       <Search className="absolute right-0 top-24 w-56">
         <Search.Input
@@ -159,22 +159,8 @@ export default function ConfirmTrackModal() {
           className="rounded-md"
         />
       </Search>
-      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-yellow-100">
-        <ClockIcon className="h-6 w-6 text-yellow-600" aria-hidden="true" />
-      </div>
+
       <div className="mt-3 text-center sm:mt-5">
-        <Dialog.Title
-          as="h3"
-          className="text-lg font-medium leading-6 text-gray-900"
-        >
-          Confirm Track
-        </Dialog.Title>
-        <Dialog.Title
-          as="h4"
-          className="my-4 text-base font-medium leading-6 text-gray-500"
-        >
-          {data?.title}
-        </Dialog.Title>
         <div className="mt-2">
           {filteredTracks.length > 0 ? (
             <Form reloadDocument method="post" id="confirm-track-form">
@@ -192,6 +178,7 @@ export default function ConfirmTrackModal() {
                 name="page"
                 value={searchParams.get("page") ?? "1"}
               />
+
               <RadioGroup value={selected} onChange={setSelected} name="_track">
                 <RadioGroup.Label className="sr-only">
                   Found Spotify Tracks

@@ -1,8 +1,4 @@
 import { prisma } from "~/db.server";
-import type {
-  SpotifyArtistResponse,
-  SpotifyImageResponse,
-} from "~/zod-schemas/spotify-track-search.server";
 
 export type { SpotifyTrack } from "@prisma/client";
 

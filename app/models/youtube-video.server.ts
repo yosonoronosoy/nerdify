@@ -69,7 +69,7 @@ export async function getYoutubeVideoByTitle({
     include: {
       spotifyTracks: {
         orderBy: {
-          levenshteinScore: "asc",
+          levenshteinScore: "desc",
         },
       },
       trackRating: {

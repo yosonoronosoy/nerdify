@@ -29,6 +29,10 @@ export const youtubeChannelWithContentDetailsSchema = z.object({
   }),
 });
 
+export type YoutubeChannelWithContentDetails = z.infer<
+  typeof youtubeChannelWithContentDetailsSchema
+>;
+
 export const youtubeChannelListSchema = z.object({
   kind: z.literal("youtube#channelListResponse"),
   etag: z.string(),
@@ -40,3 +44,5 @@ export const youtubeChannelListSchema = z.object({
   }),
   items: z.array(youtubeChannelWithContentDetailsSchema),
 });
+
+export type YoutubeChannelListSchema = z.infer<typeof youtubeChannelListSchema>;

@@ -1,5 +1,4 @@
-import { Dialog, RadioGroup } from "@headlessui/react";
-import { ClockIcon } from "@heroicons/react/outline";
+import { RadioGroup } from "@headlessui/react";
 import {
   Form,
   useLoaderData,
@@ -31,11 +30,19 @@ function classNames(...args: string[]) {
   return args.filter(Boolean).join(" ");
 }
 
-type State = { prevUrl: string; resourceId: string; resourceType: string };
+type State = {
+  prevUrl: string;
+  resourceId: string;
+  resourceType: string;
+  scrollTo: number;
+};
 function isState(state: unknown): state is State {
   if (typeof state === "object" && state !== null) {
     return (
-      "prevUrl" in state && "resourceId" in state && "resourceType" in state
+      "prevUrl" in state &&
+      "resourceId" in state &&
+      "resourceType" in state &&
+      "scrollTo" in state
     );
   }
 
@@ -44,16 +51,8 @@ function isState(state: unknown): state is State {
 
 export default function ConfirmTrackModal() {
   const data = useLoaderData<LoaderData>();
-  const { state } = useLocation();
   const params = useParams();
   const videoId = params.videoId ?? "";
-
-  const prev = isState(state) ? state.prevUrl : "";
-  const resourceId = isState(state) ? state.resourceId : "";
-  const resourceType = isState(state) ? state.resourceType : "";
-
-  const [searchParams] = useSearchParams();
-  const page = searchParams.get("page") ?? "1";
 
   const [selected, setSelected] = useState();
   const [filterQuery, setFilterQuery] = useState("");
@@ -62,6 +61,9 @@ export default function ConfirmTrackModal() {
     [data?.spotifyTracks]
   );
   const [filteredTracks, setFilteredTracks] = useState(spotifyTracks);
+
+  const [{ prevUrl }] = useInputMetadata();
+  const isConfirm = Boolean(selected);
 
   useEffect(() => {
     const filtered = spotifyTracks.filter((track) => {
@@ -76,17 +78,17 @@ export default function ConfirmTrackModal() {
     setFilteredTracks(filtered);
   }, [filterQuery, spotifyTracks]);
 
-  const prevUrl = `${prev}?page=${page}`;
-  const isConfirm = Boolean(selected);
-
   return (
     <DialogModal
       prevUrl={prevUrl}
       isConfirm={isConfirm}
       formId="confirm-track-form"
       confirmButtonTitle={isConfirm ? "Confirm" : "Set Track as Unavailable"}
+      heading="Confirm Track"
+      subHeading={data?.title}
     >
-      <Search className="absolute right-0 top-24 w-56">
+      {/* FIX: not ideal to have a search input here */}
+      <Search className="absolute right-0 -top-16 w-56">
         <Search.Input
           placeholder="Filter tracks"
           defaultValue={filterQuery}
@@ -94,22 +96,7 @@ export default function ConfirmTrackModal() {
           className="rounded-md"
         />
       </Search>
-      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-yellow-100">
-        <ClockIcon className="h-6 w-6 text-yellow-600" aria-hidden="true" />
-      </div>
       <div className="mt-3 text-center sm:mt-5">
-        <Dialog.Title
-          as="h3"
-          className="text-lg font-medium leading-6 text-gray-900"
-        >
-          Confirm Track
-        </Dialog.Title>
-        <Dialog.Title
-          as="h4"
-          className="my-4 text-base font-medium leading-6 text-gray-500"
-        >
-          {data?.title}
-        </Dialog.Title>
         <div className="mt-2">
           {filteredTracks.length > 0 ? (
             <Form
@@ -118,20 +105,7 @@ export default function ConfirmTrackModal() {
               id="confirm-track-form"
               action={`/resources/youtube/confirm-track/${videoId}`}
             >
-              <input name="prevUrl" type="hidden" value={prevUrl} />
-              <input name="resourceId" type="hidden" value={resourceId} />
-              <input name="resourceType" type="hidden" value={resourceType} />
-              <input
-                hidden
-                name="_action"
-                readOnly
-                value={selected ? "confirm" : "set-unavailable"}
-              />
-              <input
-                hidden
-                name="page"
-                value={searchParams.get("page") ?? "1"}
-              />
+              <InputMetadata selected={selected} />
               <RadioGroup value={selected} onChange={setSelected} name="_track">
                 <RadioGroup.Label className="sr-only">
                   Found Spotify Tracks
@@ -240,4 +214,65 @@ export default function ConfirmTrackModal() {
       </div>
     </DialogModal>
   );
+}
+
+function InputGroup({
+  isConfirm,
+  page,
+  metadata,
+}: {
+  isConfirm: boolean | undefined;
+  page: number;
+  metadata?: Record<string, string | number>;
+}) {
+  return (
+    <>
+      {metadata
+        ? Object.entries(metadata).map(([key, value]) => (
+            <input key={key} type="hidden" name={key} value={value} />
+          ))
+        : null}
+      <input hidden name="page" value={`${page}`} />
+      <input
+        hidden
+        name="_action"
+        readOnly
+        value={isConfirm ? "confirm" : "set-unavailable"}
+      />
+    </>
+  );
+}
+
+function useInputMetadata() {
+  const { state } = useLocation();
+  const [searchParams] = useSearchParams();
+
+  // FIX: don't like this approach, move it to session
+  const prev = isState(state) ? state.prevUrl : "";
+  const resourceId = isState(state) ? state.resourceId : "";
+  const resourceType = isState(state) ? state.resourceType : "";
+  const scrollTo = isState(state) ? state.scrollTo : "";
+
+  const pageNumber = Number(searchParams.get("page"));
+  const page = !isNaN(pageNumber) && pageNumber > 0 ? pageNumber : 1;
+
+  const prevUrl = `${prev}?page=${page}`;
+
+  return [
+    {
+      prevUrl,
+      resourceId,
+      resourceType,
+      scrollTo,
+    },
+    page,
+  ] as const;
+}
+
+function InputMetadata({ selected }: { selected: boolean | undefined }) {
+  const [metadata, page] = useInputMetadata();
+  console.log("====== CALLED +======");
+  console.log({ metadata, page });
+
+  return <InputGroup isConfirm={selected} page={page} metadata={metadata} />;
 }

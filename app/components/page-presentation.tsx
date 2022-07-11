@@ -1,12 +1,11 @@
 import { HeartIcon, PencilIcon, ViewListIcon } from "@heroicons/react/outline";
-import {
-  ViewGridIcon as ViewGridIconSolid,
-} from "@heroicons/react/solid";
+import { ViewGridIcon as ViewGridIconSolid } from "@heroicons/react/solid";
 import { Link } from "@remix-run/react";
 import { formatDistance } from "date-fns";
 import { useState } from "react";
 import { capitalize, classNames } from "~/utils";
 import type { Resource } from "~/zod-schemas/resource-schema.server";
+import { Image } from "./image";
 import { ProgressBar } from "./progress-bar";
 
 type Tab = typeof tabs[number];
@@ -183,8 +182,8 @@ function Gallery({
                 "group aspect-w-10 aspect-h-7 block w-full overflow-hidden rounded-lg bg-gray-100"
               )}
             >
-              <img
-                src={resource.image ?? ""}
+              <Image
+                src={resource.image ?? undefined}
                 alt=""
                 className={classNames(
                   resource.id === current?.id ? "" : "group-hover:opacity-75",
@@ -250,9 +249,9 @@ function DetailsSidebar({
       <div className="space-y-6 pb-16">
         <div>
           <div className="aspect-w-1 mx-auto block h-32 w-32 overflow-hidden rounded-full">
-            <img
-              src={currentResource?.image ?? ""}
-              alt=""
+            <Image
+              src={currentResource.image ?? undefined}
+              alt="thumbnail"
               className="object-cover"
             />
           </div>

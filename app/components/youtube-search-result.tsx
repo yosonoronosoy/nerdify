@@ -1,6 +1,7 @@
 import { ExclamationIcon } from "@heroicons/react/outline";
 import type { Status } from "@prisma/client";
 import { Link } from "@remix-run/react";
+import { Image } from "./image";
 
 type Resource = "channels" | "playlists" | "videos";
 
@@ -35,10 +36,10 @@ export function YoutubeSearchResult({
           target="_blank"
           rel="noopener noreferrer"
         >
-          <img
-            src={`${thumnbnailUrl}?not-from-cache-please`}
+          <Image
+            src={thumnbnailUrl}
             alt={`${resourceInSingular}-thumbnail`}
-            crossOrigin="anonymous"
+            // crossOrigin="anonymous"
             className="rounded-full"
           />
           <h3 className="text-xl font-semibold text-slate-800">{title}</h3>

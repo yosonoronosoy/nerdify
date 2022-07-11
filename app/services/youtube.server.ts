@@ -2,7 +2,9 @@ import type { Status, TrackRating } from "@prisma/client";
 import {
   addOneToManyCacheYoutubePlaylistPages,
   getCachedYoutubePlaylistPage,
+  getYoutubeChannelInfoFromCache,
   setCacheYoutubePlaylistPage,
+  setYoutubeChannelInfoInCache,
 } from "~/models/redis.server";
 import { getTrackRatingByYoutubeVideoId } from "~/models/track-rating.server";
 import {
@@ -25,6 +27,7 @@ import {
   getYoutubeVideoByTitle,
   getYoutubeVideosFromPlaylistPage,
 } from "~/models/youtube-video.server";
+import { ResourceChannelResponse } from "~/routes/resources/youtube/channel.$id";
 import { youtubeChannelListSchema } from "~/zod-schemas/youtube-channels-schema.server";
 import type { YoutubePlaylistItems } from "~/zod-schemas/youtube-playlist-schema.server";
 import { youtubePlaylistResponseSchema } from "~/zod-schemas/youtube-playlist-schema.server";
@@ -60,6 +63,13 @@ function getQuerystring(searchParams: SearchParams) {
 }
 
 export async function queryYoutubeChannel(searchParams: SearchParams) {
+  const channelId = searchParams.id;
+  const resFromCache = await getYoutubeChannelInfoFromCache(channelId);
+
+  if (resFromCache) {
+    return resFromCache;
+  }
+
   const channelQuerystring = getQuerystring(searchParams);
 
   const channelRawRes = await fetch(`${channelUrl}?${channelQuerystring}`).then(
@@ -67,6 +77,9 @@ export async function queryYoutubeChannel(searchParams: SearchParams) {
   );
 
   const channelResponse = youtubeChannelListSchema.parse(channelRawRes);
+
+  setYoutubeChannelInfoInCache(channelResponse);
+
   return channelResponse;
 }
 
@@ -451,13 +464,14 @@ export async function getPlaylistData({
     serviceKey,
   });
 
+  const oneDayInSeconds = 24 * 60 * 60;
   let headers: {
     headers: {
       [key: string]: string;
     };
   } = {
     headers: {
-      "Cache-Control": "public, max-age=120",
+      "Cache-Control": `public, max-age=${oneDayInSeconds}`,
     },
   };
 

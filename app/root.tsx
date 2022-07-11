@@ -1,5 +1,5 @@
 import type { LinksFunction, MetaFunction } from "@remix-run/node";
-import type { ActionFunction, LoaderFunction } from "@remix-run/server-runtime";
+import { ActionFunction, json, LoaderFunction } from "@remix-run/server-runtime";
 import type { Session } from "remix-auth-spotify";
 import {
   Links,
@@ -62,7 +62,14 @@ export const loader: LoaderFunction = async ({ request }) => {
     return null;
   }
 
-  return spotifySession;
+  const tenMinutesInSeconds = 60 * 10;
+  return json({
+    ...spotifySession
+  }, {
+      headers: {
+        "Cache-Control": `public, max-age=${tenMinutesInSeconds}`,
+      }
+    });
 };
 
 export const action: ActionFunction = async ({ request }) => {
@@ -321,11 +328,12 @@ function RefreshTimer({ dontAskAgain }: { dontAskAgain: "true" | undefined }) {
   const location = useLocation();
   const fetcher = useFetcher();
 
-  const refreshTime = 5000;
-  const modalTime = 2000;
+  // const refreshTime = 5000;
+  // const modalTime = 2000;
 
-  // const refreshTime = 1000 * 60 * 60;
-  // const modalTime = refreshTime - 1000 * 60 * 2;
+  // FIX: should account for actual spotify refresh token time
+  const refreshTime = 1000 * 60 * 60;
+  const modalTime = refreshTime - 1000 * 60 * 2;
 
   const modalTimer = useRef<ReturnType<typeof setTimeout>>();
   const refreshTimer = useRef<ReturnType<typeof setTimeout>>();
@@ -378,6 +386,7 @@ function RefreshTimer({ dontAskAgain }: { dontAskAgain: "true" | undefined }) {
   const openDialog = status === "show-modal";
   return (
     <DialogModal
+      key={status}
       buttonSection={
         <ButtonSection>
           <button onClick={closeModal}>Cancel</button>
@@ -386,6 +395,7 @@ function RefreshTimer({ dontAskAgain }: { dontAskAgain: "true" | undefined }) {
       }
       initialOpen={openDialog}
     >
+      {/* FIX: design better modal */}
       <Form method="post">
         <button
           onClick={() => setStatus("idle")}

@@ -7,7 +7,7 @@ export default function Dashboard() {
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 sm:px-6 md:px-8">
           <h1 className="text-2xl font-semibold text-gray-900">Dashboard</h1>
           <Form action="/logout" method="post">
-            <button className="inline-flex items-center rounded-full border border-transparent bg-red-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2">
+            <button className="inline-flex items-center rounded-full border border-transparent bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
               Logout
             </button>
           </Form>

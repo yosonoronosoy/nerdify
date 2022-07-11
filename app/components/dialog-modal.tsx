@@ -2,13 +2,18 @@ import { Fragment, useRef, useState } from "react";
 import { Dialog, Transition } from "@headlessui/react";
 import { useLocation, useNavigate } from "@remix-run/react";
 import { classNames } from "~/utils";
+import { ClockIcon } from "@heroicons/react/outline";
 
 export function DialogModal({
   children,
   formId,
-  routeState,
+  routeState, //WARNING: i dont like this
   prevUrl,
   buttonSection,
+  header,
+  headingIcon,
+  heading = "Replace me with heading prop",
+  subHeading = "Replace me with subHeading prop",
   confirmButtonTitle = "Confirm",
   cancelButtonTitle = "Cancel",
   isConfirm = true,
@@ -16,6 +21,10 @@ export function DialogModal({
 }: {
   children: React.ReactNode;
   buttonSection?: React.ReactNode;
+  header?: React.ReactNode;
+  heading?: string;
+  subHeading?: string;
+  headingIcon?: React.ReactNode;
   prevUrl?: string;
   isConfirm?: boolean;
   confirmButtonTitle?: string;
@@ -29,12 +38,6 @@ export function DialogModal({
   const location = useLocation();
 
   const [open, setOpen] = useState(initialOpen);
-
-  if (open !== initialOpen) {
-    console.log({ open, initialOpen });
-    setOpen(initialOpen);
-  }
-
   function handleClose() {
     setOpen(false);
     navigate(prevUrl ?? location.pathname, { state: routeState });
@@ -80,6 +83,32 @@ export function DialogModal({
             leaveTo="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
           >
             <div className="relative inline-block transform overflow-hidden rounded-lg bg-white px-4 pt-5 pb-4 text-left align-bottom shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-4xl sm:p-6 sm:align-middle">
+
+              {header ?? (
+                <div className="grid place-items-center gap-4">
+                  {headingIcon ?? (
+                    <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-yellow-100">
+                      <ClockIcon
+                        className="h-6 w-6 text-yellow-600"
+                        aria-hidden="true"
+                      />
+                    </div>
+                  )}
+                  <Dialog.Title
+                    as="h3"
+                    className="text-lg font-medium leading-6 text-gray-900"
+                  >
+                    {heading}
+                  </Dialog.Title>
+                  <Dialog.Title
+                    as="h4"
+                    className="mt-[-1rem] text-base font-medium leading-6 text-gray-500"
+                  >
+                    {subHeading}
+                  </Dialog.Title>
+                </div>
+              )}
+
               <div className="relative">{children}</div>
               {buttonSection ?? (
                 <div className="mt-5 sm:mt-6 sm:grid sm:grid-flow-row-dense sm:grid-cols-2 sm:gap-3">

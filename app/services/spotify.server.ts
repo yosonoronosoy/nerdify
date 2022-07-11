@@ -46,7 +46,7 @@ export async function searchTrack({
     // q: `${artist} ${track}`,
     type: "track",
     limit: "50",
-  })
+  });
   const spotifyApiUrl = `${searchUrl}?${querystring}`;
 
   const sessionFromSpotifyStrategy = await spotifyStrategy.getSession(request);
@@ -96,13 +96,17 @@ export async function searchTrack({
   return { kind: "success", data: tracks.items } as const;
 }
 
-export async function getSpotifyUserPlaylists(
-  request: Request,
-  offset?: number
-) {
+export async function fetchSpotifyUserPlaylists({
+  request,
+  offset = 0,
+  limit = 1,
+}: {
+  request: Request;
+  limit?: number;
+  offset?: number;
+}) {
   const sessionFromSpotifyStrategy = await spotifyStrategy.getSession(request);
   const spotifyUserId = await getUserIdFromSpotifySession(request);
-  const userId = await getUserIdFromSession(request);
   const accessToken = sessionFromSpotifyStrategy?.accessToken;
 
   invariant(
@@ -112,8 +116,8 @@ export async function getSpotifyUserPlaylists(
   invariant(typeof spotifyUserId === "string", "No spotify user id provided");
 
   const querystring = getQuerystring({
-    offset: offset ? `${offset}` : "0",
-    limit: "50",
+    offset: `${offset}`,
+    limit: `${limit}`,
   });
   const spotifyApiUrl = `${userPlaylistsUrl}?${querystring}`;
 
@@ -122,13 +126,30 @@ export async function getSpotifyUserPlaylists(
       Authorization: `Bearer ${accessToken}`,
     },
   }).then((res) => res.json());
+
   if ("error" in rawRes) {
     console.log(rawRes);
   }
 
-  const res = spotifyPlaylistsSchema.parse(rawRes);
+  const { items, ...res } = spotifyPlaylistsSchema.parse(rawRes);
 
-  const items = res.items.filter((item) => item.owner.id === spotifyUserId);
+  return {
+    ...res,
+    items: items.filter((item) => item.owner.id === spotifyUserId),
+  };
+}
+
+export async function getSpotifyUserPlaylists(
+  request: Request,
+  offset?: number
+) {
+  const userId = await getUserIdFromSession(request);
+
+  const { items, ...res } = await fetchSpotifyUserPlaylists({
+    request,
+    limit: 50,
+    offset,
+  });
 
   upsertManySpotifyPlaylists({
     data: items.map((item) => ({

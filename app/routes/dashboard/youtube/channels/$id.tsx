@@ -1,9 +1,9 @@
+import type { ExtendedResponse } from "~/services/youtube.server";
+import type { LoaderFunction , ActionFunction} from "@remix-run/server-runtime";
 import { useLoaderData } from "@remix-run/react";
 import { json } from "@remix-run/server-runtime";
-import type { ExtendedResponse } from "~/services/youtube.server";
 import { getPlaylistData } from "~/services/youtube.server";
 import { queryYoutubeChannel } from "~/services/youtube.server";
-import type { LoaderFunction } from "@remix-run/server-runtime";
 import { upsertYoutubeChannel } from "~/models/youtube-channel.server";
 import { getUserIdFromSession } from "~/services/session.server";
 import TracksTable from "~/components/tracks-table";
@@ -15,7 +15,6 @@ const getPageNumber = (searchParams: URLSearchParams) =>
   Number(searchParams.get("page") ?? "1");
 
 export const loader: LoaderFunction = async ({ params, request }) => {
-
   if (!params.id) {
     return null;
   }
@@ -34,6 +33,7 @@ export const loader: LoaderFunction = async ({ params, request }) => {
     channelResponse.items[0].contentDetails.relatedPlaylists.uploads;
 
   const userId = await getUserIdFromSession(request);
+
   const { headers, extendedResponse } = await getPlaylistData({
     title: `${channelResponse.items[0].snippet.title} - Uploads`,
     request,
@@ -57,6 +57,14 @@ export const loader: LoaderFunction = async ({ params, request }) => {
     { ...extendedResponse, playlistId, channelId },
     headers
   );
+};
+
+export const action: ActionFunction = async ({ request }) => {
+  const formData = await request.formData();
+  const intent = formData.get("intent");
+  const scrollTo = formData.get("scrollTo");
+
+  return null;
 };
 
 export default function Channel() {
