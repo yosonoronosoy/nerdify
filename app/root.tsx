@@ -1,5 +1,9 @@
 import type { LinksFunction, MetaFunction } from "@remix-run/node";
-import { ActionFunction, json, LoaderFunction } from "@remix-run/server-runtime";
+import {
+  ActionFunction,
+  json,
+  LoaderFunction,
+} from "@remix-run/server-runtime";
 import type { Session } from "remix-auth-spotify";
 import {
   Links,
@@ -63,13 +67,16 @@ export const loader: LoaderFunction = async ({ request }) => {
   }
 
   const tenMinutesInSeconds = 60 * 10;
-  return json({
-    ...spotifySession
-  }, {
+  return json(
+    {
+      ...spotifySession,
+    },
+    {
       headers: {
         "Cache-Control": `public, max-age=${tenMinutesInSeconds}`,
-      }
-    });
+      },
+    }
+  );
 };
 
 export const action: ActionFunction = async ({ request }) => {
@@ -331,7 +338,9 @@ function RefreshTimer({ dontAskAgain }: { dontAskAgain: "true" | undefined }) {
   // const refreshTime = 5000;
   // const modalTime = 2000;
 
+  // FIX: refreshing not working well
   // FIX: should account for actual spotify refresh token time
+  
   const refreshTime = 1000 * 60 * 60;
   const modalTime = refreshTime - 1000 * 60 * 2;
 

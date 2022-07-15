@@ -1,5 +1,5 @@
 import type { ExtendedResponse } from "~/services/youtube.server";
-import type { LoaderFunction , ActionFunction} from "@remix-run/server-runtime";
+import type { LoaderFunction, ActionFunction } from "@remix-run/server-runtime";
 import { useLoaderData } from "@remix-run/react";
 import { json } from "@remix-run/server-runtime";
 import { getPlaylistData } from "~/services/youtube.server";
