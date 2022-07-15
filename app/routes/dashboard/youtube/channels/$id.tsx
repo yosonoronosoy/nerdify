@@ -1,23 +1,27 @@
 import type { ExtendedResponse } from "~/services/youtube.server";
-import type { LoaderFunction, ActionFunction } from "@remix-run/server-runtime";
+import type {
+  LoaderFunction,
+  ActionFunction,
+  LoaderArgs,
+} from "@remix-run/server-runtime";
 import { useLoaderData } from "@remix-run/react";
-import { json } from "@remix-run/server-runtime";
+import { json } from "@remix-run/node";
 import { getPlaylistData } from "~/services/youtube.server";
 import { queryYoutubeChannel } from "~/services/youtube.server";
 import { upsertYoutubeChannel } from "~/models/youtube-channel.server";
 import { getUserIdFromSession } from "~/services/session.server";
 import TracksTable from "~/components/tracks-table";
 import invariant from "tiny-invariant";
+import { useEffect } from "react";
 
 type LoaderData = (ExtendedResponse & { channelId: string }) | null;
 
 const getPageNumber = (searchParams: URLSearchParams) =>
   Number(searchParams.get("page") ?? "1");
 
-export const loader: LoaderFunction = async ({ params, request }) => {
-  if (!params.id) {
-    return null;
-  }
+export const loader = async (args: LoaderArgs) => {
+  const { params, request } = args;
+  invariant(typeof params.id === "string", "Channel id is required");
 
   const pageNumber = getPageNumber(new URL(request.url).searchParams);
 
@@ -53,8 +57,22 @@ export const loader: LoaderFunction = async ({ params, request }) => {
     status: "PROCESSING",
   });
 
-  return json<LoaderData>(
-    { ...extendedResponse, playlistId, channelId },
+  const tracks = extendedResponse.items.map((track) => ({
+    id: track.id,
+    channelId: track.snippet.channelId,
+    videoId: track.snippet.resourceId.videoId,
+    title: track.snippet.title,
+    thumbnailUrl: track.snippet.thumbnails.default?.url,
+    trackRating: track.trackRating?.rating,
+    channelTitle: track.snippet.videoOwnerChannelTitle,
+    spotifyAvailability: track.spotifyAvailability.kind,
+    closeMatchSpotifyTitle: track.closeMatchSpotifyTitle,
+    closeMatchPercentage: track.closeMatchPercentage,
+    closeMatchSpotifyTrackId: track.closeMatchSpotifyTrackId,
+  }));
+
+  return json(
+    { tracks, playlistId, channelId, totalItems: extendedResponse.totalItems },
     headers
   );
 };
@@ -68,10 +86,11 @@ export const action: ActionFunction = async ({ request }) => {
 };
 
 export default function Channel() {
-  const data = useLoaderData<LoaderData>();
+  const data = useLoaderData<typeof loader>();
+
   const channelId = data?.channelId;
   invariant(typeof channelId === "string", "channelId is required");
-  const tracks = data?.items ?? [];
+  const tracks = data?.tracks ?? [];
   return (
     <TracksTable
       resource={{ resourceId: channelId, resourceType: "channel" }}

@@ -30,8 +30,19 @@ const useSSRLayoutEffect = isServerRender ? () => {} : useLayoutEffect;
 const getPageNumber = (searchParams: URLSearchParams) =>
   Number(searchParams.get("page") ?? "1");
 
-// TODO: add a form to add song to spotify playlist
-// TODO: add a for to create spotify playlist from selected songs
+type Track = {
+  id: string;
+  channelId: string;
+  videoId: string;
+  title: string;
+  thumbnailUrl: string | undefined;
+  channelTitle: string;
+  trackRating: number | undefined;
+  spotifyAvailability: ExtendedResponse["items"][number]["spotifyAvailability"]["kind"];
+  closeMatchSpotifyTitle: string | null;
+  closeMatchPercentage: number | null;
+  closeMatchSpotifyTrackId: string | null;
+};
 
 // FIX: consider leaving Row as a children prop
 type Resource = { resourceId: string; resourceType: string };
@@ -42,7 +53,7 @@ export default function TracksTable({
   resource,
   scrollTop = 0,
 }: {
-  tracks: ExtendedResponse["items"];
+  tracks: Track[];
   resource: Resource;
   totalItems?: number;
   playlistId?: string;
@@ -249,7 +260,7 @@ function Row({
   scrollTo = 0,
   isLast = false,
 }: {
-  track: ExtendedResponse["items"][number];
+  track: Track;
   isSelected: boolean;
   onCheckboxChange: React.ChangeEventHandler<HTMLInputElement> | undefined;
   resource: Resource;
@@ -270,15 +281,15 @@ function Row({
         <input
           type="checkbox"
           className="absolute left-4 top-1/2 -mt-2 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 sm:left-6"
-          name={`${track.snippet.channelId}:${track.snippet.resourceId.videoId}`}
-          value={track.snippet.title}
+          name={`${track.channelId}:${track.videoId}`}
+          value={track.title}
           checked={isSelected}
           onChange={onCheckboxChange}
         />
       </td>
       <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
         <img
-          src={track.snippet.thumbnails.default?.url}
+          src={track.thumbnailUrl}
           alt="youtube-video-thumbnail"
         />
       </td>
@@ -290,18 +301,18 @@ function Row({
       >
         <Link
           prefetch="intent"
-          to={`video-player/${track.snippet.resourceId.videoId}`}
+          to={`video-player/${track.videoId}`}
         >
-          <div>{track.snippet.title}</div>
+          <div>{track.title}</div>
           {track.trackRating ? (
-            <Rating review={{ rating: track.trackRating.rating }} />
+            <Rating review={{ rating: track.trackRating }} />
           ) : (
             <span className="block h-4" />
           )}
         </Link>
       </td>
       <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-        {track.snippet.videoOwnerChannelTitle}
+        {track.channelTitle}
       </td>
       <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
         {(transition.state === "submitting" ||
@@ -312,9 +323,9 @@ function Row({
           </div>
         ) : (
           <div>
-            {track.spotifyAvailability.kind === "UNCHECKED" ? (
+            {track.spotifyAvailability === "UNCHECKED" ? (
               <MinusIcon className="mx-auto block h-4 w-4" />
-            ) : track.spotifyAvailability.kind === "PENDING" ? (
+            ) : track.spotifyAvailability === "PENDING" ? (
               <div className="relative">
                 <Tooltip>
                   <Popover.Panel
@@ -357,7 +368,7 @@ function Row({
                               resourceType: resource.resourceType,
                               scrollTo: scrollTo,
                             }}
-                            to={`confirm-track/${track.snippet.resourceId.videoId}?${searchParams}`}
+                            to={`confirm-track/${track.videoId}?${searchParams}`}
                           >
                             See the entire list of matches
                           </Link>
@@ -368,13 +379,13 @@ function Row({
                         <div className="grid grid-cols-2 gap-2">
                           <SecondaryButton
                             name="makeUnavailable"
-                            value={`${track.snippet.channelId}:${track.snippet.resourceId.videoId}:${track.closeMatchSpotifyTrackId}`}
+                            value={`${track.channelId}:${track.videoId}:${track.closeMatchSpotifyTrackId}`}
                           >
                             Unavailable
                           </SecondaryButton>
                           <PrimaryButton
                             name="makeAvailable"
-                            value={`${track.snippet.channelId}:${track.snippet.resourceId.videoId}:${track.closeMatchSpotifyTrackId}`}
+                            value={`${track.channelId}:${track.videoId}:${track.closeMatchSpotifyTrackId}`}
                           >
                             Available
                           </PrimaryButton>
@@ -384,7 +395,7 @@ function Row({
                   </Popover.Panel>
                 </Tooltip>
               </div>
-            ) : track.spotifyAvailability.kind === "AVAILABLE" ? (
+            ) : track.spotifyAvailability === "AVAILABLE" ? (
               <CheckIcon className="mx-auto block h-4 w-4 text-green-500" />
             ) : (
               <XIcon className="mx-auto block h-4 w-4 text-red-500" />
