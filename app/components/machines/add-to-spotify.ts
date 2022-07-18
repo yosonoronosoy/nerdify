@@ -1,48 +1,86 @@
 import { createMachine } from "xstate";
 
-async function fetchAllPlaylists() {}
-
 export const machine = createMachine({
+  id: "spotify",
   initial: "init",
   states: {
     init: {
       on: {
-        SEARCH: [],
-        GRAB_ALL_PLAYLISTS: [],
+        SEARCH: {
+          target: "searchingPlaylist",
+        },
+        GRAB_ALL_PLAYLISTS: {
+          target: "grabbingAllPlaylists",
+        },
       },
     },
     grabbingAllPlaylists: {
-      // FIX: GET RID OF INVOCATIONS SINCE THIS WILL BE MANAGE BY REMIX's fetcher.load
-      invoke: {
-        src: fetchAllPlaylists,
-        onDone: "grabbingAllPlaylists.success",
-        onError: "grabbingAllPlaylists.error",
-      },
-    },
-    "grabbingAllPlaylists.success": {
-      on: {
-        SEARCH: [],
-      },
-    },
-    "grabbingAllPlaylists.error": {
-      on: {
-        RETRY: "grabbingAllPlaylists",
+      initial: "start",
+      states: {
+        start: {
+          on: {
+            SUCCEED: {
+              target: "success",
+            },
+            FAIL: {
+              target: "error",
+            },
+          },
+        },
+        error: {
+          on: {
+            RETRY: {
+              target: "start",
+            },
+          },
+        },
+        success: {
+          on: {
+            SEARCH: {
+              target: "#spotify.searchingPlaylist",
+            },
+          },
+        },
       },
     },
     searchingPlaylist: {
-      initial: ".entering",
+      initial: "entering",
       states: {
         entering: {
-          invoke: 
+          on: {
+            SUCCEED: {
+              target: "filtering",
+            },
+          },
         },
-        filtering: {},
+        filtering: {
+          on: {
+            FIND: [
+              {
+                cond: "isPlaylistFound",
+                target: "#spotify.success",
+              },
+              {
+                target: "#spotify.playlistNotFound",
+              },
+            ],
+          },
+        },
       },
     },
-    exit: {
-      //
-    },
+    exit: {},
     success: {
-      //
+      type: "final",
+    },
+    playlistNotFound: {
+      on: {
+        EXIT: {
+          target: "exit",
+        },
+        RETRY: {
+          target: "searchingPlaylist",
+        },
+      },
     },
   },
 });
