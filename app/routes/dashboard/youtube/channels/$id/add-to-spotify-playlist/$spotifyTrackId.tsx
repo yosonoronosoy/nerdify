@@ -9,7 +9,7 @@ import {
   useSearchParams,
   useTransition,
 } from "@remix-run/react";
-import type { LoaderFunction } from "@remix-run/server-runtime";
+import type { LoaderArgs, LoaderFunction } from "@remix-run/server-runtime";
 import { json } from "@remix-run/server-runtime";
 import { useEffect, useState } from "react";
 import { DialogModal } from "~/components/dialog-modal";
@@ -23,31 +23,31 @@ import {
 } from "~/routes/resources/spotify-playlists";
 import { classNames } from "~/utils";
 
-type LoaderData =
-  | {
-      kind: "no-playlists";
-      message: string;
-      totalItems: number;
-    }
-  | {
-      kind: "playlists";
-      playlists: SpotifyPlaylist[];
-    };
+// type LoaderData =
+//   | {
+//       kind: "no-playlists";
+//       message: string;
+//       totalItems: number;
+//     }
+//   | {
+//       kind: "playlists";
+//       playlists: SpotifyPlaylist[];
+//     };
 
-export const loader: LoaderFunction = async ({ request }) => {
+export async function loader({ request }: LoaderArgs) {
   const userId = await getUserIdFromSession(request);
   const playlists = await getRecentlyViewedSpotifyPlaylists({ userId });
 
   if (playlists.length === 0) {
-    return json<LoaderData>({
+    return json({
       kind: "no-playlists",
       message: "You haven't checked out any playlists yet.",
       totalItems: 0,
     });
   }
 
-  return json<LoaderData>({ kind: "playlists", playlists });
-};
+  return json({ kind: "playlists", playlists });
+}
 
 type State = { prevUrl: string; resourceId: string; resourceType: string };
 
@@ -64,17 +64,9 @@ function isState(state: unknown): state is State {
 export default function ConfirmTrackModal() {
   const fetcher = useFetcher<SpotifyPlaylistLoaderData>();
 
-  const transition = useTransition();
-
   const { state } = useLocation();
+
   const prevUrl = isState(state) ? state.prevUrl : "";
-  const resourceId = isState(state) ? state.resourceId : "";
-  const resourceType = isState(state) ? state.resourceType : "";
-  const [progress, setProgress] = useState(0);
-
-  // const [searchParams] = useSearchParams();
-  // const page = searchParams.get("page") ?? "1";
-
   const [selected, setSelected] = useState();
 
   const items =
@@ -87,13 +79,6 @@ export default function ConfirmTrackModal() {
   // const prevUrl = `${prev}?page=${page}`;
   const isConfirm = Boolean(selected);
 
-  useEffect(() => {
-    let eventSource = new EventSource("/resources/sse/spotify-playlists");
-    eventSource.addEventListener("message", (event) => {
-      setProgress(event.data || "unknown");
-    });
-  }, []);
-
   return (
     <DialogModal
       prevUrl={prevUrl}
@@ -101,12 +86,12 @@ export default function ConfirmTrackModal() {
       formId="confirm-track-form"
       confirmButtonTitle={isConfirm ? "Confirm" : "Set Track as Unavailable"}
     >
-      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-yellow-100">
-        <ClockIcon className="h-6 w-6 text-yellow-600" aria-hidden="true" />
-      </div>
-      <div className="mt-3 text-center sm:mt-5">
-        <h1 className="text-lg font-bold">progress so far {progress} </h1>
-      </div>
+      {/* <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-yellow-100"> */}
+      {/*   <ClockIcon className="h-6 w-6 text-yellow-600" aria-hidden="true" /> */}
+      {/* </div> */}
+      {/* <div className="mt-3 text-center sm:mt-5"> */}
+      {/*   <h1 className="text-lg font-bold">progress so far {progress} </h1> */}
+      {/* </div> */}
     </DialogModal>
   );
 }
