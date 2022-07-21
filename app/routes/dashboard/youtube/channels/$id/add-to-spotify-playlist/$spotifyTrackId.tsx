@@ -12,6 +12,7 @@ import {
 import type { LoaderArgs, LoaderFunction } from "@remix-run/server-runtime";
 import { json } from "@remix-run/server-runtime";
 import { useEffect, useState } from "react";
+import { useMachine } from "@xstate/react";
 import { DialogModal } from "~/components/dialog-modal";
 import type { SpotifyPlaylist } from "~/models/spotify-playlist.server";
 import { getRecentlyViewedSpotifyPlaylists } from "~/models/spotify-playlist.server";
@@ -22,6 +23,8 @@ import {
   SpotifyPlaylistLoaderData,
 } from "~/routes/resources/spotify-playlists";
 import { classNames } from "~/utils";
+import { addToSpotifyMachine } from "~/components/machines/add-to-spotify";
+import { Machine } from "xstate";
 
 // type LoaderData =
 //   | {
@@ -64,6 +67,8 @@ function isState(state: unknown): state is State {
 export default function ConfirmTrackModal() {
   const fetcher = useFetcher<SpotifyPlaylistLoaderData>();
 
+  const [machineState, send] = useMachine(addToSpotifyMachine);
+
   const { state } = useLocation();
 
   const prevUrl = isState(state) ? state.prevUrl : "";
@@ -86,12 +91,9 @@ export default function ConfirmTrackModal() {
       formId="confirm-track-form"
       confirmButtonTitle={isConfirm ? "Confirm" : "Set Track as Unavailable"}
     >
-      {/* <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-yellow-100"> */}
-      {/*   <ClockIcon className="h-6 w-6 text-yellow-600" aria-hidden="true" /> */}
-      {/* </div> */}
-      {/* <div className="mt-3 text-center sm:mt-5"> */}
-      {/*   <h1 className="text-lg font-bold">progress so far {progress} </h1> */}
-      {/* </div> */}
+      {machineState.matches('init.firstTimeVisiting') && "You haven't checked out any playlists yet."}
+      {machineState.matches('init.partiallyProcessed') && 'Please select a track to add to your Spotify playlist.'}
+      {machineState.matches('init.fullyProcessed') && 'Please select a track to add to your Spotify playlist.'}
     </DialogModal>
   );
 }

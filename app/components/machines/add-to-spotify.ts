@@ -1,15 +1,25 @@
 import { createMachine } from "xstate";
 
-export const machine = createMachine(
+export const addToSpotifyMachine = createMachine(
   {
+    context: {
+      playlistsInDB: 0,
+      playlistsInSpotify: 0,
+      isPlaylistFound: false,
+    },
     tsTypes: {} as import("./add-to-spotify.typegen").Typegen0,
     schema: {
-      context: {} as { playlistsInDB: number; playlistsInSpotify: number },
+      context: {} as {
+        playlistsInDB: number;
+        playlistsInSpotify: number;
+        isPlaylistFound: boolean;
+      },
       events: {} as
         | {
             type: "DATA_CHANGE";
             payload: { playlistsInDB: number; playlistsInSpotify: number };
           }
+        | { type: "PLAYLIST_FOUND" }
         | { type: "SEARCH" }
         | { type: "GRAB_ALL_PLAYLISTS" }
         | { type: "SUCCEED" }
@@ -19,18 +29,39 @@ export const machine = createMachine(
         | { type: "EXIT" },
     },
     id: "spotify",
-    context: {
-      playlistsInDB: 0,
-      playlistsInSpotify: 0,
-    },
     initial: "init",
     on: {
+      PLAYLIST_FOUND: {
+        actions: "playlistFound",
+      },
       DATA_CHANGE: {
         actions: "updateContextWhenDataChange",
       },
     },
     states: {
       init: {
+        initial: "enter",
+        states: {
+          firstTimeVisiting: {},
+          partiallyProcessed: {},
+          fullyProcessed: {},
+          enter: {
+            always: [
+              {
+                cond: "noPlaylistsInDB",
+                target: "#spotify.init.firstTimeVisiting",
+              },
+              {
+                cond: "somePlaylistsInDB",
+                target: "#spotify.init.partiallyProcessed",
+              },
+              {
+                target: "#spotify.init.fullyProcessed",
+              },
+            ],
+          },
+        },
+
         on: {
           SEARCH: {
             target: "searchingPlaylist",
@@ -117,10 +148,24 @@ export const machine = createMachine(
         context.playlistsInSpotify !== 0 ||
         context.playlistsInDB === 0 ||
         context.playlistsInSpotify > context.playlistsInDB,
+      noPlaylistsInDB: (context) => context.playlistsInDB === 0,
+      isPlaylistFound: (context) => context.isPlaylistFound,
+      somePlaylistsInDB: (context) =>
+        context.playlistsInDB > 0 &&
+        context.playlistsInDB < context.playlistsInSpotify,
     },
     actions: {
-      updateContextWhenDataChange: (_context, event) => {
-        return event.payload;
+      updateContextWhenDataChange: (context, event) => {
+        return {
+          ...context,
+          ...event.payload,
+        };
+      },
+      playlistFound: (context) => {
+        return {
+          ...context,
+          playlistFound: true,
+        };
       },
     },
   }

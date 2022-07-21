@@ -14,12 +14,10 @@ import TracksTable from "~/components/tracks-table";
 import invariant from "tiny-invariant";
 import { useEffect } from "react";
 
-type LoaderData = (ExtendedResponse & { channelId: string }) | null;
-
 const getPageNumber = (searchParams: URLSearchParams) =>
   Number(searchParams.get("page") ?? "1");
 
-export const loader = async (args: LoaderArgs) => {
+export async function loader(args: LoaderArgs) {
   const { params, request } = args;
   invariant(typeof params.id === "string", "Channel id is required");
 
@@ -38,6 +36,17 @@ export const loader = async (args: LoaderArgs) => {
 
   const userId = await getUserIdFromSession(request);
 
+  /**
+   * FIX:  DONT WAIT FOR 5 pages (it blocks the screen)
+   * ----------------------------------------------------------------
+   * Instead of waiting for the first 5 pages, retrieve the first and
+   * schedule the remaining 4 as a promise that's not awaited
+   * ----------------------------------------------------------------
+   *
+   * maybe you could call an endpoint without items data, just to map
+   * pageNumbers to pageTokens (nextPageToken, prevPageToken) this way the data
+   * over the wire reduces it's *bandwith*?
+   */
   const { headers, extendedResponse } = await getPlaylistData({
     title: `${channelResponse.items[0].snippet.title} - Uploads`,
     request,
@@ -75,7 +84,7 @@ export const loader = async (args: LoaderArgs) => {
     { tracks, playlistId, channelId, totalItems: extendedResponse.totalItems },
     headers
   );
-};
+}
 
 export const action: ActionFunction = async ({ request }) => {
   const formData = await request.formData();
