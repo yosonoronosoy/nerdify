@@ -2,24 +2,15 @@ import { createMachine } from "xstate";
 
 export const addToSpotifyMachine = createMachine(
   {
-    context: {
-      playlistsInDB: 0,
-      playlistsInSpotify: 0,
-      isPlaylistFound: false,
-    },
+    context: { playlistsInDB: 5, playlistsInSpotify: 10 },
     tsTypes: {} as import("./add-to-spotify.typegen").Typegen0,
     schema: {
-      context: {} as {
-        playlistsInDB: number;
-        playlistsInSpotify: number;
-        isPlaylistFound: boolean;
-      },
+      context: {} as { playlistsInDB: number; playlistsInSpotify: number },
       events: {} as
         | {
             type: "DATA_CHANGE";
             payload: { playlistsInDB: number; playlistsInSpotify: number };
           }
-        | { type: "PLAYLIST_FOUND" }
         | { type: "SEARCH" }
         | { type: "GRAB_ALL_PLAYLISTS" }
         | { type: "SUCCEED" }
@@ -31,37 +22,32 @@ export const addToSpotifyMachine = createMachine(
     id: "spotify",
     initial: "init",
     on: {
-      PLAYLIST_FOUND: {
-        actions: "playlistFound",
-      },
-      DATA_CHANGE: {
-        actions: "updateContextWhenDataChange",
-      },
+      DATA_CHANGE: [
+        {
+          actions: "updateContextWhenDataChange",
+          cond: "noPlaylistsInDB",
+          target: ".init.firstTimeVisiting",
+          internal: false,
+        },
+        {
+          cond: "somePlaylistsInDB",
+          target: ".init.partiallyProcessed",
+          internal: false,
+        },
+        {
+          target: ".init.fullyProcessed",
+          internal: false,
+        },
+      ],
     },
     states: {
       init: {
-        initial: "enter",
+        initial: "firstTimeVisiting",
         states: {
           firstTimeVisiting: {},
           partiallyProcessed: {},
           fullyProcessed: {},
-          enter: {
-            always: [
-              {
-                cond: "noPlaylistsInDB",
-                target: "#spotify.init.firstTimeVisiting",
-              },
-              {
-                cond: "somePlaylistsInDB",
-                target: "#spotify.init.partiallyProcessed",
-              },
-              {
-                target: "#spotify.init.fullyProcessed",
-              },
-            ],
-          },
         },
-
         on: {
           SEARCH: {
             target: "searchingPlaylist",
@@ -149,23 +135,13 @@ export const addToSpotifyMachine = createMachine(
         context.playlistsInDB === 0 ||
         context.playlistsInSpotify > context.playlistsInDB,
       noPlaylistsInDB: (context) => context.playlistsInDB === 0,
-      isPlaylistFound: (context) => context.isPlaylistFound,
       somePlaylistsInDB: (context) =>
         context.playlistsInDB > 0 &&
         context.playlistsInDB < context.playlistsInSpotify,
     },
     actions: {
-      updateContextWhenDataChange: (context, event) => {
-        return {
-          ...context,
-          ...event.payload,
-        };
-      },
-      playlistFound: (context) => {
-        return {
-          ...context,
-          playlistFound: true,
-        };
+      updateContextWhenDataChange: (_context, event) => {
+        return event.payload;
       },
     },
   }

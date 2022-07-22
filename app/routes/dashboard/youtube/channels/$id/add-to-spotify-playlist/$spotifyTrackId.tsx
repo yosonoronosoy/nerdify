@@ -1,41 +1,26 @@
-import { Dialog, RadioGroup } from "@headlessui/react";
-import { ClockIcon } from "@heroicons/react/outline";
-import {
-  Form,
-  useFetcher,
-  useLoaderData,
-  useLocation,
-  useParams,
-  useSearchParams,
-  useTransition,
-} from "@remix-run/react";
-import type { LoaderArgs, LoaderFunction } from "@remix-run/server-runtime";
+import { RadioGroup } from "@headlessui/react";
+import { useFetcher, useLocation } from "@remix-run/react";
+import type { LoaderArgs } from "@remix-run/server-runtime";
 import { json } from "@remix-run/server-runtime";
 import { useEffect, useState } from "react";
 import { useMachine } from "@xstate/react";
-import { DialogModal } from "~/components/dialog-modal";
-import type { SpotifyPlaylist } from "~/models/spotify-playlist.server";
-import { getRecentlyViewedSpotifyPlaylists } from "~/models/spotify-playlist.server";
-import { SearchBarWithButton } from "~/components/search-bar-with-button";
-import { getUserIdFromSession } from "~/services/session.server";
 import {
+  DialogModal,
+  ModalHeader,
+  ModalHeaderSubTitle,
+  ModalHeaderTitle,
+  useHandleClose,
+} from "~/components/dialog-modal";
+import { getRecentlyViewedSpotifyPlaylists } from "~/models/spotify-playlist.server";
+import { getUserIdFromSession } from "~/services/session.server";
+import type {
   OptionRowItem,
   SpotifyPlaylistLoaderData,
 } from "~/routes/resources/spotify-playlists";
 import { classNames } from "~/utils";
 import { addToSpotifyMachine } from "~/components/machines/add-to-spotify";
-import { Machine } from "xstate";
-
-// type LoaderData =
-//   | {
-//       kind: "no-playlists";
-//       message: string;
-//       totalItems: number;
-//     }
-//   | {
-//       kind: "playlists";
-//       playlists: SpotifyPlaylist[];
-//     };
+import { AlertWithAccentBorder } from "~/components/alert-with-accent-border";
+import { SearchBarWithButton } from "~/components/search-bar-with-button";
 
 export async function loader({ request }: LoaderArgs) {
   const userId = await getUserIdFromSession(request);
@@ -84,17 +69,87 @@ export default function ConfirmTrackModal() {
   // const prevUrl = `${prev}?page=${page}`;
   const isConfirm = Boolean(selected);
 
+  useEffect(() => {
+    send({
+      type: "DATA_CHANGE",
+      payload: {
+        playlistsInDB: 4,
+        playlistsInSpotify: 10,
+      },
+    });
+  }, [send]);
+
+  console.log({context: machineState.context})
+
   return (
     <DialogModal
       prevUrl={prevUrl}
       isConfirm={isConfirm}
       formId="confirm-track-form"
-      confirmButtonTitle={isConfirm ? "Confirm" : "Set Track as Unavailable"}
+      buttonSection={null}
+      header={<Header />}
     >
-      {machineState.matches('init.firstTimeVisiting') && "You haven't checked out any playlists yet."}
-      {machineState.matches('init.partiallyProcessed') && 'Please select a track to add to your Spotify playlist.'}
-      {machineState.matches('init.fullyProcessed') && 'Please select a track to add to your Spotify playlist.'}
+      <div className="mx-auto mt-8 max-w-xl">
+        {machineState.matches("init.firstTimeVisiting") && (
+          <div>
+            <AlertWithAccentBorder>
+              You haven't checked out any playlists yet.
+            </AlertWithAccentBorder>
+            <div className="mt-8 rounded-xl bg-gray-100 px-4 py-6">
+              <SearchBarWithButton
+                title="Search spotify playlist"
+                placeholder="Enter playlist name..."
+              />
+            </div>
+          </div>
+        )}
+        {machineState.matches("init.partiallyProcessed") &&
+          "Please select a track to add to your Spotify playlist."}
+        {machineState.matches("init.fullyProcessed") &&
+          "Please select a track to add to your Spotify playlist."}
+      </div>
     </DialogModal>
+  );
+}
+
+function Header() {
+  return (
+    <ModalHeader>
+      <CloseButton />
+      <ModalHeaderTitle>Spotify Playlists</ModalHeaderTitle>
+      <ModalHeaderSubTitle>
+        Find the playlist you want to add the selected tracks to
+      </ModalHeaderSubTitle>
+    </ModalHeader>
+  );
+}
+
+function CloseButton() {
+  const handleClose = useHandleClose();
+
+  return (
+    <button
+      type="button"
+      onClick={handleClose}
+      className="absolute right-0 -top-2"
+    >
+      <span className="text-gray-500">
+        <svg
+          className="h-6 w-6"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M6 18L18 6M6 6l12 12"
+          />
+        </svg>
+      </span>
+    </button>
   );
 }
 

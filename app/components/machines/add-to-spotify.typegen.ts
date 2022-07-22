@@ -3,25 +3,23 @@
 export interface Typegen0 {
   "@@xstate/typegen": true;
   eventsCausingActions: {
-    playlistFound: "PLAYLIST_FOUND";
     updateContextWhenDataChange: "DATA_CHANGE";
   };
   internalEvents: {
-    "": { type: "" };
     "xstate.init": { type: "xstate.init" };
   };
   invokeSrcNameMap: {};
   missingImplementations: {
     actions: never;
     services: never;
-    guards: never;
+    guards: "isPlaylistFound";
     delays: never;
   };
   eventsCausingServices: {};
   eventsCausingGuards: {
+    noPlaylistsInDB: "DATA_CHANGE";
+    somePlaylistsInDB: "DATA_CHANGE";
     isPlaylistsLeft: "GRAB_ALL_PLAYLISTS";
-    noPlaylistsInDB: "";
-    somePlaylistsInDB: "";
     isPlaylistFound: "FIND";
   };
   eventsCausingDelays: {};
@@ -30,7 +28,6 @@ export interface Typegen0 {
     | "init.firstTimeVisiting"
     | "init.partiallyProcessed"
     | "init.fullyProcessed"
-    | "init.enter"
     | "grabbingAllPlaylists"
     | "grabbingAllPlaylists.start"
     | "grabbingAllPlaylists.error"
@@ -42,11 +39,7 @@ export interface Typegen0 {
     | "success"
     | "playlistNotFound"
     | {
-        init?:
-          | "firstTimeVisiting"
-          | "partiallyProcessed"
-          | "fullyProcessed"
-          | "enter";
+        init?: "firstTimeVisiting" | "partiallyProcessed" | "fullyProcessed";
         grabbingAllPlaylists?: "start" | "error" | "success";
         searchingPlaylist?: "entering" | "filtering";
       };
