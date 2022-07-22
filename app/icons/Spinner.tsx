@@ -1,8 +1,34 @@
-export function Spinner() {
+import { classNames } from "~/utils";
+
+const spinner = {
+  colors: {
+    indigo: "fill-indigo-600 text-gray-200",
+    yellow: "fill-yellow-400 text-gray-50",
+    red: "fill-red-600 text-gray-100",
+  },
+  sizes: {
+    sm: "w-4 h-4",
+    md: "w-6 h-6",
+    lg: "w-8 h-8",
+  },
+} as const;
+
+type Color = keyof typeof spinner.colors;
+type Size = keyof typeof spinner.sizes;
+interface Props {
+  color?: Color;
+  size?: Size;
+}
+
+export function Spinner({ color = "indigo", size = "md" }: Props) {
   return (
     <svg
       role="status"
-      className="mr-2 inline h-6 w-6 animate-spin fill-indigo-600 text-gray-200"
+      className={classNames(
+        "mr-2 inline animate-spin",
+        spinner.colors[color],
+        spinner.sizes[size]
+      )}
       viewBox="0 0 100 101"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"

@@ -13,9 +13,11 @@ type LoaderData = {
 
 export const loader: LoaderFunction = async ({ request }) => {
   const userIdFromDB = await getUserIdFromSession(request);
+
   const recentlyViewedUsersOnChannels = await getYoutubeChannelsByUserId(
     userIdFromDB
   );
+
   const channels = resourcesSchema.parse(
     recentlyViewedUsersOnChannels.map((c) => {
       const { channelId, ...channel } = c.youtubeChannel;

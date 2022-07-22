@@ -251,6 +251,7 @@ function DetailsSidebar({
           <div className="aspect-w-1 mx-auto block h-32 w-32 overflow-hidden rounded-full">
             <Image
               src={currentResource.image ?? undefined}
+              // src={ undefined}
               alt="thumbnail"
               className="object-cover"
             />

@@ -17,6 +17,7 @@ import {
   Form,
   useLocation,
   useFetcher,
+  useTransition,
 } from "@remix-run/react";
 import { YoutubeIcon } from "~/icons/youtube";
 import { RadioIcon } from "~/icons/radio-icon";
@@ -33,6 +34,8 @@ import tailwindStylesheetUrl from "./styles/tailwind.css";
 import DiscogsIcon from "./icons/discogs-icon";
 import { DialogModal } from "./components/dialog-modal";
 import { commitSession, setSessionByKey } from "./services/session.server";
+import { Spinner } from "./icons/spinner";
+import { AuthButton } from "./components/buttons";
 
 export const links: LinksFunction = () => {
   return [{ rel: "stylesheet", href: tailwindStylesheetUrl }];
@@ -97,6 +100,9 @@ type LoaderData = (Session & { dontAskAgain?: "true" }) | null | undefined;
 export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const data = useLoaderData<LoaderData>();
+
+  const transition = useTransition();
+
   const user = data?.user;
   const dontAskAgain = data?.dontAskAgain;
 
@@ -308,9 +314,12 @@ export default function App() {
             {!user ? (
               <div className="grid h-[100vh] place-items-center">
                 <Form action="/auth/spotify" method="post">
-                  <button className="inline-flex items-center rounded-full border border-transparent bg-green-600 px-5 py-2 text-base font-medium text-white shadow-sm hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2">
+                  <AuthButton
+                    isIdle={transition.state === "idle"}
+                    isSubmitting={transition.state === "submitting"}
+                  >
                     Login with Spotify
-                  </button>
+                  </AuthButton>
                 </Form>
               </div>
             ) : (
@@ -340,7 +349,7 @@ function RefreshTimer({ dontAskAgain }: { dontAskAgain: "true" | undefined }) {
 
   // FIX: refreshing not working well
   // FIX: should account for actual spotify refresh token time
-  
+
   const refreshTime = 1000 * 60 * 60;
   const modalTime = refreshTime - 1000 * 60 * 2;
 
