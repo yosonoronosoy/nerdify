@@ -12,7 +12,7 @@ export interface Typegen0 {
   missingImplementations: {
     actions: never;
     services: never;
-    guards: "isPlaylistFound";
+    guards: never;
     delays: never;
   };
   eventsCausingServices: {};

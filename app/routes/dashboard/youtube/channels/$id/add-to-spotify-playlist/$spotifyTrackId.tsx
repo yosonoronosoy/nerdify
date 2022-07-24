@@ -1,5 +1,5 @@
 import { RadioGroup } from "@headlessui/react";
-import { useFetcher, useLocation } from "@remix-run/react";
+import { useFetcher, useLoaderData, useLocation } from "@remix-run/react";
 import type { LoaderArgs } from "@remix-run/server-runtime";
 import { json } from "@remix-run/server-runtime";
 import { useEffect, useState } from "react";
@@ -23,18 +23,19 @@ import { AlertWithAccentBorder } from "~/components/alert-with-accent-border";
 import { SearchBarWithButton } from "~/components/search-bar-with-button";
 
 export async function loader({ request }: LoaderArgs) {
-  const userId = await getUserIdFromSession(request);
-  const playlists = await getRecentlyViewedSpotifyPlaylists({ userId });
+  // const userId = await getUserIdFromSession(request);
+  // const playlists = await getRecentlyViewedSpotifyPlaylists({ userId });
+  //
+  // if (playlists.length === 0) {
+  //   return json({
+  //     kind: "no-playlists",
+  //     message: "You haven't checked out any playlists yet.",
+  //     totalItems: 0,
+  //   });
+  // }
 
-  if (playlists.length === 0) {
-    return json({
-      kind: "no-playlists",
-      message: "You haven't checked out any playlists yet.",
-      totalItems: 0,
-    });
-  }
-
-  return json({ kind: "playlists", playlists });
+  // return json({ kind: "playlists", playlists });
+  return json({ playlistsInSpotify: 0, playlistsInDB: 0 });
 }
 
 type State = { prevUrl: string; resourceId: string; resourceType: string };
@@ -51,8 +52,14 @@ function isState(state: unknown): state is State {
 
 export default function ConfirmTrackModal() {
   const fetcher = useFetcher<SpotifyPlaylistLoaderData>();
+  const data = useLoaderData<typeof loader>();
 
-  const [machineState, send] = useMachine(addToSpotifyMachine);
+  const [machineState, send] = useMachine(addToSpotifyMachine, {
+    context: {
+      playlistsInDB: data.playlistsInDB,
+      playlistsInSpotify: data.playlistsInSpotify,
+    },
+  });
 
   const { state } = useLocation();
 
@@ -79,7 +86,9 @@ export default function ConfirmTrackModal() {
     });
   }, [send]);
 
-  console.log({context: machineState.context})
+  console.log({ context: machineState.context });
+  console.log({ value: machineState.value });
+  // console.log({ transitions: machineState.transitions });
 
   return (
     <DialogModal

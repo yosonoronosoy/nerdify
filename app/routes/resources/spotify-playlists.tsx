@@ -1,5 +1,5 @@
 /* eslint-disable no-loop-func */
-import type { LoaderFunction } from "@remix-run/server-runtime";
+import type { LoaderArgs, LoaderFunction } from "@remix-run/server-runtime";
 import { json } from "@remix-run/server-runtime";
 import invariant from "tiny-invariant";
 import {
@@ -65,7 +65,7 @@ export type SpotifyPlaylistLoaderData =
 //   return null;
 // };
 
-export const loader: LoaderFunction = async ({ request }) => {
+export async function loader({ request }: LoaderArgs) {
   const url = new URL(request.url);
   const userId = await getUserIdFromSession(request);
 
@@ -98,7 +98,6 @@ export const loader: LoaderFunction = async ({ request }) => {
     return json<SpotifyPlaylistLoaderData>(playlistFromDB);
   }
 
-
   // GET PLAYLISTS (API)
   let userPlaylists = await getSpotifyUserPlaylists(request);
 
@@ -126,7 +125,6 @@ export const loader: LoaderFunction = async ({ request }) => {
 
   // ITERATIVE FETCHING OF PLAYLISTS
   for (let j = 1; j < iterations; j += step) {
-
     // mainly for the previous iteration
     const playlistsFound = findPlaylist({
       playlists: lastPlaylists,
@@ -190,7 +188,7 @@ export const loader: LoaderFunction = async ({ request }) => {
       },
     }),
   });
-};
+}
 
 async function getPlaylistsFromCache({
   userId,

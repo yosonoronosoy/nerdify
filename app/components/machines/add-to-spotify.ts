@@ -1,11 +1,15 @@
-import { createMachine } from "xstate";
+import { assign, createMachine } from "xstate";
 
 export const addToSpotifyMachine = createMachine(
   {
-    context: { playlistsInDB: 5, playlistsInSpotify: 10 },
+    context: { playlistsInDB: 0, playlistsInSpotify: 0, playlistFound: false },
     tsTypes: {} as import("./add-to-spotify.typegen").Typegen0,
     schema: {
-      context: {} as { playlistsInDB: number; playlistsInSpotify: number },
+      context: {} as {
+        playlistsInDB: number;
+        playlistsInSpotify: number;
+        playlistFound: boolean;
+      },
       events: {} as
         | {
             type: "DATA_CHANGE";
@@ -27,16 +31,13 @@ export const addToSpotifyMachine = createMachine(
           actions: "updateContextWhenDataChange",
           cond: "noPlaylistsInDB",
           target: ".init.firstTimeVisiting",
-          internal: false,
         },
         {
           cond: "somePlaylistsInDB",
           target: ".init.partiallyProcessed",
-          internal: false,
         },
         {
           target: ".init.fullyProcessed",
-          internal: false,
         },
       ],
     },
@@ -138,11 +139,12 @@ export const addToSpotifyMachine = createMachine(
       somePlaylistsInDB: (context) =>
         context.playlistsInDB > 0 &&
         context.playlistsInDB < context.playlistsInSpotify,
+      isPlaylistFound: (context) => context.playlistFound,
     },
     actions: {
-      updateContextWhenDataChange: (_context, event) => {
+      updateContextWhenDataChange: assign((_context, event) => {
         return event.payload;
-      },
+      }),
     },
   }
 );
