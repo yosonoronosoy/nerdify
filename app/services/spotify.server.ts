@@ -139,6 +139,12 @@ export async function fetchSpotifyUserPlaylists({
   };
 }
 
+export async function getUserTotalPlaylists({ request }: { request: Request }) {
+  const { total } = await fetchSpotifyUserPlaylists({ request });
+
+  return total;
+}
+
 export async function getSpotifyUserPlaylists(
   request: Request,
   offset?: number

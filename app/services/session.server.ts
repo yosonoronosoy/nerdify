@@ -82,6 +82,7 @@ export async function setSessionByKey(
     scopedSession = await getSession(request);
   }
 
+  // this is for setting all keys from an object as keys in the session
   if (sessionKey === null) {
     for (const [key, value] of Object.entries(data)) {
       scopedSession.set(key, value);
@@ -89,42 +90,6 @@ export async function setSessionByKey(
 
     return scopedSession;
   }
-
-  /**
-   * {
-  *
-  * FIX: SESSION WRITTEN OUTSIDE OF SPOTIFY:SESSION KEY
-  'oauth2:state': '29ec997d-3ba6-4016-b2ce-a70d714825a4',
-    FIX:
-  'spotify:session': {
-    accessToken: '....sQ5aK4hwQWO_R_J',
-    refreshToken: '...iREQEtglaWnk',
-    expiresAt: 1656712009055,
-    tokenType: 'Bearer',
-    user: {
-      id: 'arodriguezpascual',
-      email: 'alexandros2707@gmail.com',
-      name: 'Alejandro Rodríguez Pascual',
-      image: 'https://scontent-iad3-2.xx.fbcdn.net/v/t1.6435-1/122509733_10164493084660048_117519393098641749_n.jpg?stp=dst-jpg_p320x320&_nc_cat=104&ccb=1-7&_nc_sid=0c64ff&_nc_ohc=_Ojpw9ECsDQAX8ny8xG&_nc_ht=scontent-iad3-2.xx&edm=AP4hL3IEAAAA&oh=00_AT-Pln6veGEwF7T2hccUoieO4diQd99MQyFgsF54LM65Rg&oe=62E403BB'
-    }
-  },
-  userIdFromDB: 'cl4soou2h00027g3nm01hqjos',
-    FIX:
-  accessToken: '...5GtgaKphLTJhrJBa',
-  refreshToken: '...iREQEtglaWnk',
-  expiresAt: 1656712016820,
-  tokenType: 'Bearer',
-  user: {
-    id: 'arodriguezpascual',
-    email: 'alexandros2707@gmail.com',
-    name: 'Alejandro Rodríguez Pascual',
-    image: 'https://scontent-iad3-2.xx.fbcdn.net/v/t1.6435-1/122509733_10164493084660048_117519393098641749_n.jpg?stp=dst-jpg_p320x320&_nc_cat=104&ccb=1-7&_nc_sid=0c64ff&_nc_ohc=_Ojpw9ECsDQAX8ny8xG&_nc_ht=scontent-iad3-2.xx&edm=AP4hL3IEAAAA&oh=00_AT-Pln6veGEwF7T2hccUoieO4diQd99MQyFgsF54LM65Rg&oe=62E403BB'
-  },
-  tokenExpired: false
-}
-
-   *
-   */
 
   scopedSession.set(sessionKey, data);
   return scopedSession;

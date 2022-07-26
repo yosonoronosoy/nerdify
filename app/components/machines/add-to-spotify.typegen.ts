@@ -20,7 +20,7 @@ export interface Typegen0 {
     noPlaylistsInDB: "DATA_CHANGE";
     somePlaylistsInDB: "DATA_CHANGE";
     isPlaylistsLeft: "GRAB_ALL_PLAYLISTS";
-    isPlaylistFound: "FIND";
+    isPlaylistFound: "FIND" | "RESULT";
   };
   eventsCausingDelays: {};
   matchesStates:
@@ -33,15 +33,14 @@ export interface Typegen0 {
     | "grabbingAllPlaylists.error"
     | "grabbingAllPlaylists.success"
     | "searchingPlaylist"
-    | "searchingPlaylist.entering"
-    | "searchingPlaylist.filtering"
     | "exit"
+    | "error"
     | "success"
     | "playlistNotFound"
+    | "grabbingSinglePlaylist"
     | {
         init?: "firstTimeVisiting" | "partiallyProcessed" | "fullyProcessed";
         grabbingAllPlaylists?: "start" | "error" | "success";
-        searchingPlaylist?: "entering" | "filtering";
       };
   tags: never;
 }

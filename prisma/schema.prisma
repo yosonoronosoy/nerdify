@@ -45,9 +45,9 @@ model SpotifyPlaylist {
   image      String?
   url        String
 
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-  lastViewedAt DateTime? @default(now())
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  lastViewedAt DateTime @default(now())
 }
 
 model Favorite {

@@ -11,8 +11,6 @@ import {
   ModalHeaderTitle,
   useHandleClose,
 } from "~/components/dialog-modal";
-import { getRecentlyViewedSpotifyPlaylists } from "~/models/spotify-playlist.server";
-import { getUserIdFromSession } from "~/services/session.server";
 import type {
   OptionRowItem,
   SpotifyPlaylistLoaderData,
@@ -21,20 +19,14 @@ import { classNames } from "~/utils";
 import { addToSpotifyMachine } from "~/components/machines/add-to-spotify";
 import { AlertWithAccentBorder } from "~/components/alert-with-accent-border";
 import { SearchBarWithButton } from "~/components/search-bar-with-button";
+import { Machine } from "xstate";
+
+const playlistIdRegex = /playlist\/([^?]+)/;
 
 export async function loader({ request }: LoaderArgs) {
   // const userId = await getUserIdFromSession(request);
   // const playlists = await getRecentlyViewedSpotifyPlaylists({ userId });
-  //
-  // if (playlists.length === 0) {
-  //   return json({
-  //     kind: "no-playlists",
-  //     message: "You haven't checked out any playlists yet.",
-  //     totalItems: 0,
-  //   });
-  // }
 
-  // return json({ kind: "playlists", playlists });
   return json({ playlistsInSpotify: 0, playlistsInDB: 0 });
 }
 
@@ -112,10 +104,18 @@ export default function ConfirmTrackModal() {
             </div>
           </div>
         )}
+
         {machineState.matches("init.partiallyProcessed") &&
           "Please select a track to add to your Spotify playlist."}
+
         {machineState.matches("init.fullyProcessed") &&
-          "Please select a track to add to your Spotify playlist."}
+          "All playlists processed"}
+
+        {machineState.matches("searchingPlaylist") && (
+          <div>Searching playlist...</div>
+        )}
+
+        {machineState.matches("success") && <div>'Success'</div>}
       </div>
     </DialogModal>
   );

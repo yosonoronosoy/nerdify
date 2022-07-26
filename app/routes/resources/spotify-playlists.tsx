@@ -67,6 +67,21 @@ export type SpotifyPlaylistLoaderData =
 
 export async function loader({ request }: LoaderArgs) {
   const url = new URL(request.url);
+
+  const intent = url.searchParams.get("intent");
+  invariant(
+    typeof intent === "string",
+    "playlist title query param must be a string"
+  );
+
+  if (intent === "get-playlists") {
+    storeOwnerPlaylistsInDB({ request });
+    return
+  }
+}
+
+async function storeOwnerPlaylistsInDB({ request }: { request: Request }) {
+  const url = new URL(request.url);
   const userId = await getUserIdFromSession(request);
 
   const playlistTitle = url.searchParams.get("playlist");
@@ -76,7 +91,6 @@ export async function loader({ request }: LoaderArgs) {
   );
   const offsetParam = Number(url.searchParams.get("offset"));
   let offset = !isNaN(offsetParam) ? offsetParam : 0;
-
   // CHECK CACHE
   const cachedPlaylists = await getPlaylistsFromCache({
     userId,

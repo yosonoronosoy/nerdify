@@ -17,10 +17,15 @@ export const addToSpotifyMachine = createMachine(
           }
         | { type: "SEARCH" }
         | { type: "GRAB_ALL_PLAYLISTS" }
-        | { type: "SUCCEED" }
+        | { type: "GR" }
+        | { type: "GRAB_SINGLE_PLAYLIST" }
         | { type: "FAIL" }
+        | { type: "RETRY_SEARCH" }
+        | { type: "RETRY_GRAB" }
         | { type: "RETRY" }
         | { type: "FIND" }
+        | { type: "SUCCEED" }
+        | { type: "RESULT" }
         | { type: "EXIT" },
     },
     id: "spotify",
@@ -57,6 +62,9 @@ export const addToSpotifyMachine = createMachine(
             cond: "isPlaylistsLeft",
             target: "grabbingAllPlaylists",
           },
+          GRAB_SINGLE_PLAYLIST: {
+            target: "grabbingSinglePlaylist",
+          },
         },
       },
       grabbingAllPlaylists: {
@@ -89,31 +97,20 @@ export const addToSpotifyMachine = createMachine(
         },
       },
       searchingPlaylist: {
-        initial: "entering",
-        states: {
-          entering: {
-            on: {
-              SUCCEED: {
-                target: "filtering",
-              },
+        on: {
+          FIND: [
+            {
+              cond: "isPlaylistFound",
+              target: "success",
             },
-          },
-          filtering: {
-            on: {
-              FIND: [
-                {
-                  cond: "isPlaylistFound",
-                  target: "#spotify.success",
-                },
-                {
-                  target: "#spotify.playlistNotFound",
-                },
-              ],
+            {
+              target: "playlistNotFound",
             },
-          },
+          ],
         },
       },
       exit: {},
+      error: {},
       success: {
         type: "final",
       },
@@ -122,9 +119,25 @@ export const addToSpotifyMachine = createMachine(
           EXIT: {
             target: "exit",
           },
-          RETRY: {
+          RETRY_SEARCH: {
             target: "searchingPlaylist",
           },
+          RETRY_GRAB: {
+            target: "grabbingSinglePlaylist",
+          },
+        },
+      },
+      grabbingSinglePlaylist: {
+        on: {
+          RESULT: [
+            {
+              cond: "isPlaylistFound",
+              target: "success",
+            },
+            {
+              target: "playlistNotFound",
+            },
+          ],
         },
       },
     },

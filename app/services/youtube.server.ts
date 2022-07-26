@@ -6,11 +6,7 @@ import {
   setCacheYoutubePlaylistPage,
   setYoutubeChannelInfoInCache,
 } from "~/models/redis.server";
-import { getTrackRatingByYoutubeVideoId } from "~/models/track-rating.server";
-import {
-  getManyYoutubeChannels,
-  getYoutubeChannel,
-} from "~/models/youtube-channel.server";
+import { getManyYoutubeChannels } from "~/models/youtube-channel.server";
 import {
   createYoutubePlaylistPage,
   getNearestYoutubePlaylistPage,
@@ -23,11 +19,6 @@ import {
   getYoutubePlaylistByPlaylistId,
   updateYoutubePlaylistCount,
 } from "~/models/youtube-playlist.server";
-import {
-  getYoutubeVideoByTitle,
-  getYoutubeVideosFromPlaylistPage,
-} from "~/models/youtube-video.server";
-import { ResourceChannelResponse } from "~/routes/resources/youtube/channel.$id";
 import { youtubeChannelListSchema } from "~/zod-schemas/youtube-channels-schema.server";
 import type { YoutubePlaylistItems } from "~/zod-schemas/youtube-playlist-schema.server";
 import { youtubePlaylistResponseSchema } from "~/zod-schemas/youtube-playlist-schema.server";
@@ -437,6 +428,7 @@ export async function getPlaylistData({
   pageNumber,
   userIdFromDB,
   imgUrl,
+  pageRange = 0,
 }: {
   playlistId: string;
   title: string;
@@ -446,6 +438,7 @@ export async function getPlaylistData({
   pageNumber: number;
   userIdFromDB: string;
   imgUrl?: string;
+  pageRange?: number;
 }) {
   let playlistFromDB = await getYoutubePlaylistByPlaylistId(playlistId);
 
@@ -491,7 +484,7 @@ export async function getPlaylistData({
     const res = await queryPlaylistItemFromPageRange({
       playlistId,
       from: 1,
-      to: 5,
+      to: 1 + pageRange,
       youtubePlaylistIdFromDB: playlistFromDB.id,
     });
 

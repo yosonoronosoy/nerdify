@@ -1,9 +1,4 @@
-import type { ExtendedResponse } from "~/services/youtube.server";
-import type {
-  LoaderFunction,
-  ActionFunction,
-  LoaderArgs,
-} from "@remix-run/server-runtime";
+import type { ActionFunction, LoaderArgs } from "@remix-run/server-runtime";
 import { useLoaderData } from "@remix-run/react";
 import { json } from "@remix-run/node";
 import { getPlaylistData } from "~/services/youtube.server";
@@ -12,7 +7,6 @@ import { upsertYoutubeChannel } from "~/models/youtube-channel.server";
 import { getUserIdFromSession } from "~/services/session.server";
 import TracksTable from "~/components/tracks-table";
 import invariant from "tiny-invariant";
-import { useEffect } from "react";
 
 const getPageNumber = (searchParams: URLSearchParams) =>
   Number(searchParams.get("page") ?? "1");
