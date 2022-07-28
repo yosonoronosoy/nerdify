@@ -5,6 +5,9 @@ import { json } from "@remix-run/server-runtime";
 import { useEffect, useState } from "react";
 import { useMachine } from "@xstate/react";
 import {
+  CancelButton,
+  ConfirmButton,
+  DefaultButtonSection,
   DialogModal,
   ModalHeader,
   ModalHeaderSubTitle,
@@ -42,6 +45,21 @@ function isState(state: unknown): state is State {
   return false;
 }
 
+const searchTabs = [
+  {
+    title: "By Title",
+    component: (
+      <SearchBarWithButton title="By Title" placeholder="Enter Title..." />
+    ),
+  },
+  {
+    title: "By URL",
+    component: (
+      <SearchBarWithButton title="By URL" placeholder="Enter URL..." />
+    ),
+  },
+] as const;
+
 export default function ConfirmTrackModal() {
   const fetcher = useFetcher<SpotifyPlaylistLoaderData>();
   const data = useLoaderData<typeof loader>();
@@ -50,6 +68,7 @@ export default function ConfirmTrackModal() {
     context: {
       playlistsInDB: data.playlistsInDB,
       playlistsInSpotify: data.playlistsInSpotify,
+      playlistFound: true,
     },
   });
 
@@ -69,25 +88,25 @@ export default function ConfirmTrackModal() {
   const isConfirm = Boolean(selected);
 
   useEffect(() => {
-    send({
-      type: "DATA_CHANGE",
-      payload: {
-        playlistsInDB: 4,
-        playlistsInSpotify: 10,
-      },
-    });
+    send("ERASE_TELEPORT_GO_TO_GRABBING_SINGLE_PLAYLIST_SUCCESS");
   }, [send]);
 
-  console.log({ context: machineState.context });
-  console.log({ value: machineState.value });
-  // console.log({ transitions: machineState.transitions });
+
+  const [selectedTab, setSelectedTab] = useState<number>(0);
 
   return (
     <DialogModal
       prevUrl={prevUrl}
       isConfirm={isConfirm}
       formId="confirm-track-form"
-      buttonSection={null}
+      buttonSection={
+        machineState.context.hasButtonSection ? (
+          <DefaultButtonSection>
+            <CancelButton>Cancel</CancelButton>
+            <ConfirmButton success>Add</ConfirmButton>
+          </DefaultButtonSection>
+        ) : null
+      }
       header={<Header />}
     >
       <div className="mx-auto mt-8 max-w-xl">
@@ -96,11 +115,38 @@ export default function ConfirmTrackModal() {
             <AlertWithAccentBorder>
               You haven't checked out any playlists yet.
             </AlertWithAccentBorder>
-            <div className="mt-8 rounded-xl bg-gray-100 px-4 py-6">
-              <SearchBarWithButton
-                title="Search spotify playlist"
-                placeholder="Enter playlist name..."
-              />
+
+            <div className="mt-8">
+              <div className="peer flex gap-0.5">
+                {searchTabs.map((tab, idx) => (
+                  <button
+                    type="button"
+                    onClick={() => setSelectedTab(idx)}
+                    onFocus={() => setSelectedTab(idx)}
+                    key={idx}
+                    style={{
+                      boxShadow: "rgba(0, 0, 0, 0.06) 0px 2px 4px 0px inset;",
+                    }}
+                    className={classNames(
+                      "relative rounded-t-lg px-4 py-2 text-sm focus:border-x focus:border-t focus:border-indigo-500 focus:outline-none",
+                      selectedTab === idx
+                        ? "bg-gray-100"
+                        : "bg-gray-50 text-gray-600"
+                    )}
+                  >
+                    {tab.title}
+                    <span
+                      className={classNames(
+                        "absolute left-0 -bottom-1 h-2 w-full bg-gray-100",
+                        selectedTab === idx ? "inline" : "hidden"
+                      )}
+                    />
+                  </button>
+                ))}
+              </div>
+              <div className="rounded-xl rounded-tl-none bg-gray-100 px-4 py-6 shadow-sm  peer-focus-within:border peer-focus-within:border-indigo-500">
+                {searchTabs[selectedTab].component}
+              </div>
             </div>
           </div>
         )}
@@ -115,7 +161,9 @@ export default function ConfirmTrackModal() {
           <div>Searching playlist...</div>
         )}
 
-        {machineState.matches("success") && <div>'Success'</div>}
+        {machineState.matches("grabSinglePlaylistSuccess") && (
+          <div>Playlist found!</div>
+        )}
       </div>
     </DialogModal>
   );
