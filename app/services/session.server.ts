@@ -53,6 +53,7 @@ export async function setNewCookie(
   const session = await setSessionByKey(sessionKey, { request, data });
   const redirectPath = path ?? new URL(request.url).pathname;
 
+  console.log({ redirectPath });
   return redirect(redirectPath, {
     headers: { "Set-Cookie": await sessionStorage.commitSession(session) },
   });

@@ -130,7 +130,7 @@ export function DialogModal({
                         >
                           {cancelButtonTitle}
                         </CancelButton>
-                        <ConfirmButton isConfirm={isConfirm} formId={formId}>
+                        <ConfirmButton success={isConfirm} formId={formId}>
                           {confirmButtonTitle}
                         </ConfirmButton>
                       </DefaultButtonSection>
@@ -174,18 +174,25 @@ export function CancelButton({ children, ...props }: CancelButtonProps) {
 
 export function ConfirmButton({
   children,
-  isConfirm,
+  success,
   formId,
+  error,
   ...props
-}: CancelButtonProps & { isConfirm?: boolean; formId?: string }) {
+}: CancelButtonProps & {
+  success?: boolean;
+  error?: boolean;
+  formId?: string;
+}) {
   return (
     <button
       {...props}
       className={classNames(
         "inline-flex w-full justify-center rounded-md border border-transparent  px-4 py-2 text-base font-medium text-white shadow-sm focus:outline-none focus:ring-2  focus:ring-offset-2 sm:text-sm",
-        isConfirm
+        success
           ? "bg-indigo-600 hover:bg-indigo-700  focus:ring-indigo-500"
-          : "bg-red-600 hover:bg-red-700  focus:ring-red-500"
+          : error
+          ? "bg-red-600 hover:bg-red-700  focus:ring-red-500"
+          : ""
       )}
       form={formId}
     >

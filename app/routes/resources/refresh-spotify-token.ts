@@ -13,7 +13,7 @@ export const action: ActionFunction = async ({ request }) => {
   invariant(typeof redirectTo === "string", "redirectTo is required");
 
   if (!spotifySession) {
-    throw redirect("/");
+    throw redirect("/login");
   }
 
   return setSessionWithNewAccessToken({
