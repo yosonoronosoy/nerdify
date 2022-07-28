@@ -2,13 +2,19 @@ import { assign, createMachine } from "xstate";
 
 export const addToSpotifyMachine = createMachine(
   {
-    context: { playlistsInDB: 0, playlistsInSpotify: 0, playlistFound: false },
+    context: {
+      playlistsInDB: 0,
+      playlistsInSpotify: 0,
+      playlistFound: false,
+      hasButtonSection: false,
+    },
     tsTypes: {} as import("./add-to-spotify.typegen").Typegen0,
     schema: {
       context: {} as {
         playlistsInDB: number;
         playlistsInSpotify: number;
         playlistFound: boolean;
+        hasButtonSection: boolean;
       },
       events: {} as
         | {
@@ -26,7 +32,8 @@ export const addToSpotifyMachine = createMachine(
         | { type: "FIND" }
         | { type: "SUCCEED" }
         | { type: "RESULT" }
-        | { type: "EXIT" },
+        | { type: "EXIT" }
+        | { type: "ERASE_TELEPORT_GO_TO_GRABBING_SINGLE_PLAYLIST_SUCCESS" },
     },
     id: "spotify",
     initial: "init",
@@ -45,6 +52,9 @@ export const addToSpotifyMachine = createMachine(
           target: ".init.fullyProcessed",
         },
       ],
+      ERASE_TELEPORT_GO_TO_GRABBING_SINGLE_PLAYLIST_SUCCESS: {
+        target: "grabSinglePlaylistSuccess",
+      },
     },
     states: {
       init: {
@@ -101,7 +111,7 @@ export const addToSpotifyMachine = createMachine(
           FIND: [
             {
               cond: "isPlaylistFound",
-              target: "success",
+              target: "searchSuccess",
             },
             {
               target: "playlistNotFound",
@@ -111,8 +121,10 @@ export const addToSpotifyMachine = createMachine(
       },
       exit: {},
       error: {},
-      success: {
-        type: "final",
+      searchSuccess: {},
+      grabSinglePlaylistSuccess: {
+        entry: "turnOnButtonSection",
+        exit: "turnOffButtonSection",
       },
       playlistNotFound: {
         on: {
@@ -132,7 +144,7 @@ export const addToSpotifyMachine = createMachine(
           RESULT: [
             {
               cond: "isPlaylistFound",
-              target: "success",
+              target: "grabSinglePlaylistSuccess",
             },
             {
               target: "playlistNotFound",
@@ -158,6 +170,8 @@ export const addToSpotifyMachine = createMachine(
       updateContextWhenDataChange: assign((_context, event) => {
         return event.payload;
       }),
+      turnOnButtonSection: assign({ hasButtonSection: (_context) => true }),
+      turnOffButtonSection: assign({ hasButtonSection: (_context) => false }),
     },
   }
 );

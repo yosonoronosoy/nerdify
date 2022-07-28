@@ -4,6 +4,10 @@ export interface Typegen0 {
   "@@xstate/typegen": true;
   eventsCausingActions: {
     updateContextWhenDataChange: "DATA_CHANGE";
+    turnOffButtonSection: "xstate.init";
+    turnOnButtonSection:
+      | "ERASE_TELEPORT_GO_TO_GRABBING_SINGLE_PLAYLIST_SUCCESS"
+      | "RESULT";
   };
   internalEvents: {
     "xstate.init": { type: "xstate.init" };
@@ -35,7 +39,8 @@ export interface Typegen0 {
     | "searchingPlaylist"
     | "exit"
     | "error"
-    | "success"
+    | "searchSuccess"
+    | "grabSinglePlaylistSuccess"
     | "playlistNotFound"
     | "grabbingSinglePlaylist"
     | {
