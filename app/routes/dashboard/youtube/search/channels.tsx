@@ -29,18 +29,21 @@ export default function YoutubeSearchChannel() {
   return (
     <div>
       {data && data.items.length > 0 ? (
-        <ul className="mt-16">
-          {data.items.map((item) => (
-            <YoutubeSearchResult
-              key={item.id.channelId}
-              resource="channels"
-              resourceId={item.id.channelId}
-              thumnbnailUrl={item.snippet.thumbnails.default?.url}
-              title={item.snippet.title}
-              status={item.channelStatus}
-            />
-          ))}
-        </ul>
+        <div className="mx-auto max-w-xl mt-16">
+          <h2 className="font-semibold">Search results:</h2>
+          <ul className="mt-4 space-y-6">
+            {data.items.map((item) => (
+              <YoutubeSearchResult
+                key={item.id.channelId}
+                resource="channels"
+                resourceId={item.id.channelId}
+                thumnbnailUrl={item.snippet.thumbnails.default?.url}
+                title={item.snippet.title}
+                status={item.channelStatus}
+              />
+            ))}
+          </ul>
+        </div>
       ) : data && data.items.length === 0 ? (
         <YoutubeSearchError resource="channels" />
       ) : null}

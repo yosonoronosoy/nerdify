@@ -28,10 +28,10 @@ export function YoutubeSearchResult({
   const resourceInSingular = resource.slice(0, -1);
 
   return (
-    <li  className="mx-auto max-w-xl rounded-md p-8 shadow-lg">
-      <div className="flex items-center justify-between">
+    <li className="rounded-md">
+      <div className="flex w-full items-center rounded-lg bg-emerald-100 px-4 pt-14 pb-8 shadow-2xl sm:px-6 sm:pt-8 md:p-4 lg:p-4 lg:pr-8">
         <a
-          className="flex items-center justify-between gap-24"
+          className="flex items-center justify-between gap-16"
           href={href}
           target="_blank"
           rel="noopener noreferrer"
@@ -40,12 +40,12 @@ export function YoutubeSearchResult({
             src={thumnbnailUrl}
             alt={`${resourceInSingular}-thumbnail`}
             // crossOrigin="anonymous"
-            className="rounded-full"
+            className="rounded-full h-28 aspect-1"
           />
-          <h3 className="text-xl font-semibold text-slate-800">{title}</h3>
+          <h3 className="text-md font-semibold text-slate-800">{title}</h3>
         </a>
         <Link
-          className="text-sm text-indigo-500"
+          className="text-sm text-indigo-500 ml-auto"
           to={`/dashboard/youtube/${resource}/${resourceId}`}
         >
           Get {resourceInSingular} info

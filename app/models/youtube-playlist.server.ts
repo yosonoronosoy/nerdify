@@ -183,7 +183,7 @@ export async function upsertYoutubePlaylist({
         },
         update: {
           where: {
-            userId: userId,
+            userId,
           },
           data: {
             lastViewedAt: new Date(),
@@ -198,8 +198,8 @@ export async function upsertYoutubePlaylist({
       playlistId: playlistId ?? "",
       users: {
         create: {
-          userId,
           lastViewedAt: new Date(),
+          userId,
         },
       },
     },

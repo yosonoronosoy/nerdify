@@ -102,7 +102,7 @@ model YoutubeChannel {
 model UserOnYoutubeChannel {
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
-  userId           String         @unique
+  userId           String
   user             User           @relation(fields: [userId], references: [id])
   youtubeChannelId String
   youtubeChannel   YoutubeChannel @relation(fields: [youtubeChannelId], references: [id])

@@ -23,6 +23,7 @@ import { addToSpotifyMachine } from "~/components/machines/add-to-spotify";
 import { AlertWithAccentBorder } from "~/components/alert-with-accent-border";
 import { SearchBarWithButton } from "~/components/search-bar-with-button";
 import { Machine } from "xstate";
+import { StarIcon } from "@heroicons/react/outline";
 
 const playlistIdRegex = /playlist\/([^?]+)/;
 
@@ -90,7 +91,6 @@ export default function ConfirmTrackModal() {
   useEffect(() => {
     send("ERASE_TELEPORT_GO_TO_GRABBING_SINGLE_PLAYLIST_SUCCESS");
   }, [send]);
-
 
   const [selectedTab, setSelectedTab] = useState<number>(0);
 
@@ -161,11 +161,83 @@ export default function ConfirmTrackModal() {
           <div>Searching playlist...</div>
         )}
 
-        {machineState.matches("grabSinglePlaylistSuccess") && (
-          <div>Playlist found!</div>
-        )}
+        {machineState.matches("grabSinglePlaylistSuccess") && <Body />}
       </div>
     </DialogModal>
+  );
+}
+
+const playlist = {
+  title: "Zip Tote Basket",
+  tracks: 2000,
+  rating: 3.9,
+  href: "#",
+  description:
+    "The Zip Tote Basket is the perfect midpoint between shopping tote and comfy backpack. With convertible straps, you can hand carry, should sling, or backpack this convenient and spacious bag. The zip top and durable canvas construction keeps your goods protected for all-day use.",
+  imageSrc:
+    "https://tailwindui.com/img/ecommerce-images/product-page-03-product-04.jpg",
+  imageAlt: "Back angled view with bag open and handles to the side.",
+  colors: [
+    {
+      name: "Washed Black",
+      bgColor: "bg-gray-700",
+      selectedColor: "ring-gray-700",
+    },
+    { name: "White", bgColor: "bg-white", selectedColor: "ring-gray-400" },
+    {
+      name: "Washed Gray",
+      bgColor: "bg-gray-500",
+      selectedColor: "ring-gray-500",
+    },
+  ],
+};
+
+function Body() {
+  const [selectedColor, setSelectedColor] = useState(playlist.colors[0]);
+
+  return (
+    <div className="flex w-full items-center rounded-lg bg-emerald-100 px-4 pt-14 pb-8 shadow-2xl sm:px-6 sm:pt-8 md:p-4 lg:p-4">
+      <div className="grid w-full grid-cols-1 items-start gap-y-8 gap-x-6 sm:grid-cols-12 lg:gap-x-8">
+        <div className="sm:col-span-4 lg:col-span-3">
+          <div className="aspect-w-1 aspect-h-1 overflow-hidden rounded-lg bg-gray-100">
+            <img
+              src={playlist.imageSrc}
+              alt={playlist.imageAlt}
+              className="object-cover object-center"
+            />
+          </div>
+        </div>
+        <div className="sm:col-span-8 lg:col-span-9">
+          <h2 className="text-2xl font-extrabold text-gray-900 sm:pr-12">
+            {playlist.title}
+          </h2>
+
+          <section aria-labelledby="information-heading" className="mt-3">
+            <h3 id="information-heading" className="sr-only">
+              Playist information
+            </h3>
+
+            <div className="mt-3">
+              <div className="flex items-center text-slate-600 text-sm">
+                <div className="flex items-center gap-2">
+                  <span>Playlist</span>
+                  <span>-</span>
+                  <span>username</span>
+                </div>
+              </div>
+            </div>
+
+
+            <p className="text-slate-600 text-sm">{playlist.tracks} tracks</p>
+
+            <div className="mt-4">
+              <h4 className="sr-only">Description</h4>
+              <p className="text-sm text-gray-700">Product description</p>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
   );
 }
 

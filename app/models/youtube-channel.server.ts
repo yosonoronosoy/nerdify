@@ -74,7 +74,7 @@ export function createYoutubeChannel({
       channelId,
       totalVideos,
       users: {
-        connect: {
+        create: {
           userId: userIdFromDB,
         },
       },
@@ -90,11 +90,10 @@ export async function upsertYoutubeChannel({
   image,
   totalVideos,
 }: Partial<
-  Pick<
-    YoutubeChannel,
-    "title" | "status" | "channelId" | "image" | "totalVideos"
-  >
-> & { userId: string }) {
+  Pick<YoutubeChannel, "title" | "status" | "image" | "totalVideos">
+> & { userId: string; channelId: string }) {
+  const channel = await getYoutubeChannel({ channelId });
+
   return prisma.youtubeChannel.upsert({
     where: { channelId },
     update: {
@@ -103,7 +102,10 @@ export async function upsertYoutubeChannel({
       users: {
         update: {
           where: {
-            userId: userId,
+            userId_youtubeChannelId: {
+              userId,
+              youtubeChannelId: channel?.id ?? "",
+            },
           },
           data: {
             lastViewedAt: new Date(),
@@ -115,7 +117,7 @@ export async function upsertYoutubeChannel({
       title: title ?? "",
       image: image ?? "",
       totalVideos: totalVideos ?? 0,
-      channelId: channelId ?? "",
+      channelId,
       users: {
         create: {
           userId,
