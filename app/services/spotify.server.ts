@@ -1,6 +1,9 @@
 import invariant from "tiny-invariant";
 import { upsertManySpotifyPlaylists } from "~/models/spotify-playlist.server";
-import { spotifyPlaylistsSchema } from "~/zod-schemas/spotify-playlists-schema.server";
+import {
+  spotifyPlaylistSchema,
+  spotifyPlaylistsSchema,
+} from "~/zod-schemas/spotify-playlists-schema.server";
 import { spotifySearchTrackResponse } from "~/zod-schemas/spotify-track-search.server";
 import { spotifyStrategy } from "./auth.server";
 import {
@@ -11,6 +14,7 @@ import {
 const baseUrl = `https://api.spotify.com/v1`;
 const tracksUrl = `${baseUrl}/tracks`;
 const searchUrl = `${baseUrl}/search`;
+const playlistsUrl = `${baseUrl}/playlists`;
 const userPlaylistsUrl = `${baseUrl}/me/playlists`;
 
 type SearchParams = Record<string, string>;
@@ -106,8 +110,8 @@ export async function fetchSpotifyUserPlaylists({
   offset?: number;
 }) {
   const sessionFromSpotifyStrategy = await spotifyStrategy.getSession(request);
-  const spotifyUserId = await getUserIdFromSpotifySession(request);
   const accessToken = sessionFromSpotifyStrategy?.accessToken;
+  const spotifyUserId = await getUserIdFromSpotifySession(request);
 
   invariant(
     typeof accessToken === "string",
@@ -171,4 +175,26 @@ export async function getSpotifyUserPlaylists(
     ...res,
     items,
   };
+}
+
+export async function getSpotifyPlaylistById({
+  request,
+  playlistId,
+}: {
+  request: Request;
+  playlistId: string;
+}) {
+  const spotifyApiUrl = `${playlistsUrl}/${playlistId}`;
+  const sessionFromSpotifyStrategy = await spotifyStrategy.getSession(request);
+  const accessToken = sessionFromSpotifyStrategy?.accessToken;
+
+  const rawRes = await fetch(spotifyApiUrl, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  }).then((res) => res.json());
+
+  const res = spotifyPlaylistSchema.parse(rawRes);
+
+  return res;
 }

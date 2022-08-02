@@ -2,12 +2,17 @@ import { z } from "zod";
 
 export const spotifyPlaylistSchema = z.object({
   name: z.string(),
+  description: z.string().nullable(),
   external_urls: z.object({
     spotify: z.string(),
   }),
   id: z.string(),
   owner: z.object({
     id: z.string(),
+    display_name: z.string().nullable(),
+  }),
+  tracks: z.object({
+    total: z.number(),
   }),
   images: z.array(
     z.object({

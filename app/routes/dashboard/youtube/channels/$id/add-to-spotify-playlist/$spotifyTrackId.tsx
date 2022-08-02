@@ -22,8 +22,8 @@ import { classNames } from "~/utils";
 import { addToSpotifyMachine } from "~/components/machines/add-to-spotify";
 import { AlertWithAccentBorder } from "~/components/alert-with-accent-border";
 import { SearchBarWithButton } from "~/components/search-bar-with-button";
-import { Machine } from "xstate";
-import { StarIcon } from "@heroicons/react/outline";
+import { PlaylistCard } from "~/components/playlist-card";
+import { getSpotifyPlaylistById } from "~/services/spotify.server";
 
 const playlistIdRegex = /playlist\/([^?]+)/;
 
@@ -31,7 +31,15 @@ export async function loader({ request }: LoaderArgs) {
   // const userId = await getUserIdFromSession(request);
   // const playlists = await getRecentlyViewedSpotifyPlaylists({ userId });
 
-  return json({ playlistsInSpotify: 0, playlistsInDB: 0 });
+  // const intent = "playlist-by-id";
+  // if (intent === "playlist-by-id") {
+  const playlist = await getSpotifyPlaylistById({
+    request,
+    playlistId: "1pqeRuKHB5Obl6MYDEh9U5",
+  });
+  // }
+
+  return json({ playlistsInSpotify: 0, playlistsInDB: 0, playlist });
 }
 
 type State = { prevUrl: string; resourceId: string; resourceType: string };
@@ -161,11 +169,46 @@ export default function ConfirmTrackModal() {
           <div>Searching playlist...</div>
         )}
 
-        {machineState.matches("grabSinglePlaylistSuccess") && <Body />}
+        {machineState.matches("grabSinglePlaylistSuccess") && (
+          <div className="space-y-2">
+            <div className="text-red-600">
+              <span className="mr-2 font-bold text-red-700 underline">
+                TODO:
+              </span>{" "}
+              INSERT SELECT MULTIPLE WITH SONGS{" "}
+              <b>
+                <em>IF</em>
+              </b>{" "}
+              MULTIPLE SONGS PASSED{" "}
+              <b>
+                <em>ELSE</em>
+              </b>{" "}
+              SHOW SINGLE SONG
+            </div>
+
+            <div>
+              <h1 className="text-lg font-bold">Results:</h1>
+            </div>
+
+            <PlaylistCard
+              title={data.playlist.name}
+              username={data.playlist.owner.display_name}
+              totalTracks={data.playlist.tracks.total}
+              imgSrc={data.playlist.images[0].url}
+              description={data.playlist.description}
+              href={data.playlist.external_urls.spotify}
+            />
+          </div>
+        )}
       </div>
     </DialogModal>
   );
 }
+
+/**
+ *  movil es provincial cédula 20431952 teléfono 04126468940
+ *
+ */
 
 const playlist = {
   title: "Zip Tote Basket",
@@ -191,55 +234,6 @@ const playlist = {
     },
   ],
 };
-
-function Body() {
-  const [selectedColor, setSelectedColor] = useState(playlist.colors[0]);
-
-  return (
-    <div className="flex w-full items-center rounded-lg bg-emerald-100 px-4 pt-14 pb-8 shadow-2xl sm:px-6 sm:pt-8 md:p-4 lg:p-4">
-      <div className="grid w-full grid-cols-1 items-start gap-y-8 gap-x-6 sm:grid-cols-12 lg:gap-x-8">
-        <div className="sm:col-span-4 lg:col-span-3">
-          <div className="aspect-w-1 aspect-h-1 overflow-hidden rounded-lg bg-gray-100">
-            <img
-              src={playlist.imageSrc}
-              alt={playlist.imageAlt}
-              className="object-cover object-center"
-            />
-          </div>
-        </div>
-        <div className="sm:col-span-8 lg:col-span-9">
-          <h2 className="text-2xl font-extrabold text-gray-900 sm:pr-12">
-            {playlist.title}
-          </h2>
-
-          <section aria-labelledby="information-heading" className="mt-3">
-            <h3 id="information-heading" className="sr-only">
-              Playist information
-            </h3>
-
-            <div className="mt-3">
-              <div className="flex items-center text-slate-600 text-sm">
-                <div className="flex items-center gap-2">
-                  <span>Playlist</span>
-                  <span>-</span>
-                  <span>username</span>
-                </div>
-              </div>
-            </div>
-
-
-            <p className="text-slate-600 text-sm">{playlist.tracks} tracks</p>
-
-            <div className="mt-4">
-              <h4 className="sr-only">Description</h4>
-              <p className="text-sm text-gray-700">Product description</p>
-            </div>
-          </section>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 function Header() {
   return (
